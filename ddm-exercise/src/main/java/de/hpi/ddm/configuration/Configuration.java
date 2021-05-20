@@ -33,7 +33,9 @@ public class Configuration {
 	private boolean startPaused = false;			// Wait for some console input to start; useful, if we want to wait manually until all ActorSystems in the cluster are started (e.g. to avoid work stealing effects in performance evaluations)
 	
 	private int bufferSize = 50; 					// Buffer for input reading (the DatasetReader pre-fetches and buffers this many records)
-	
+
+	private int largeMessageChunkSize = 8192;       // Size of each message chunk for large messages (LargeMessageProxy) TODO which size?
+
 	private int welcomeDataSize = 0; 				// Size of the welcome message's data (in MB) with which each worker should be greeted
 	
 	private static String getDefaultHost() {
