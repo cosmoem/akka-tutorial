@@ -56,9 +56,9 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	// Actor State //
 	/////////////////
 
-	private static int chunkedMessageSize;
-	private static AtomicLong idCounter;
-	private static ByteBuffer byteBuffer;
+	private int chunkedMessageSize;
+	private AtomicLong idCounter;
+	private ByteBuffer byteBuffer;
 
 	/////////////////////
 	// Actor Lifecycle //
@@ -160,7 +160,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 				System.arraycopy(sourceMessageChunk, 0, destinationMessage, offset, sourceMessageChunk.length);
 			}
 
-			// Deserialize; Decoded Message = Original Message // TODO Object? Which class/ type???
+			// Deserialize; Decoded Message = Original Message
 			Object decodedMessage = KryoPoolSingleton.get().fromBytes(destinationMessage);
 
 			// Send message to receiver
@@ -172,8 +172,8 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	// Helper Methods //
 	////////////////////
 
-	private static long createID() {
-		return idCounter.getAndIncrement();
+	private long createID() {
+		return this.idCounter.getAndIncrement();
 	}
 
 	// Receiver expects BytesMessage therefore we need to return a BytesMessage object in our chunkCreator

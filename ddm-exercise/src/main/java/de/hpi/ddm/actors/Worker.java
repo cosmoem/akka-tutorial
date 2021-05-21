@@ -6,10 +6,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 
-import akka.actor.AbstractLoggingActor;
-import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
+import akka.actor.*;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent.CurrentClusterState;
 import akka.cluster.ClusterEvent.MemberRemoved;
@@ -49,11 +46,10 @@ public class Worker extends AbstractLoggingActor {
 		private static final long serialVersionUID = 8343040942748609598L;
 		private BloomFilter welcomeData;
 	}
-	@Data
+	@Data @NoArgsConstructor @AllArgsConstructor
 	public static class WorkpackageMessage implements Serializable {
 		private static final long serialVersionUID = -1237147518255012838L;
-		private final PasswordWorkpackage passwordWorkpackage;
-
+		private PasswordWorkpackage passwordWorkpackage;
 	}
 	/////////////////
 	// Actor State //
@@ -136,53 +132,14 @@ public class Worker extends AbstractLoggingActor {
 				.tell(new Master.NextMessage(), this.self());
 	}
 
-
-	private void handle(WorkpackageMessage workpackageMessage) {
+	private void handle(WorkpackageMessage message) {
+		PasswordWorkpackage workpackage = message.getPasswordWorkpackage();
+		int numberOfWorkers = workpackage.getHints().length/3;
 		this.log().info("Received Work!");
-	}
-
-
-
-	private String hash(String characters) {
-		try {
-			MessageDigest digest = MessageDigest.getInstance("SHA-256");
-			byte[] hashedBytes = digest.digest(String.valueOf(characters).getBytes("UTF-8"));
-			
-			StringBuffer stringBuffer = new StringBuffer();
-			for (int i = 0; i < hashedBytes.length; i++) {
-				stringBuffer.append(Integer.toString((hashedBytes[i] & 0xff) + 0x100, 16).substring(1));
-			}
-			return stringBuffer.toString();
-		}
-		catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-			throw new RuntimeException(e.getMessage());
-		}
-	}
-	
-	// Generating all permutations of an array using Heap's Algorithm
-	// https://en.wikipedia.org/wiki/Heap's_algorithm
-	// https://www.geeksforgeeks.org/heaps-algorithm-for-generating-permutations/
-	private void heapPermutation(char[] a, int size, int n, List<String> l) {
-		// If size is 1, store the obtained permutation
-		if (size == 1)
-			l.add(new String(a));
-
-		for (int i = 0; i < size; i++) {
-			heapPermutation(a, size - 1, n, l);
-
-			// If size is odd, swap first and last element
-			if (size % 2 == 1) {
-				char temp = a[0];
-				a[0] = a[size - 1];
-				a[size - 1] = temp;
-			}
-
-			// If size is even, swap i-th and last element
-			else {
-				char temp = a[i];
-				a[i] = a[size - 1];
-				a[size - 1] = temp;
-			}
+		for (int i = 0; i < numberOfWorkers; i++) {
+			ActorRef actor = this.context().actorOf(BruteForceWorker.props(), BruteForceWorker.DEFAULT_NAME + i);
+			BruteForceWorker.HintMessage hintMessage = new BruteForceWorker.HintMessage(workpackage, i);
+			actor.tell(hintMessage, this.self());
 		}
 	}
 }
