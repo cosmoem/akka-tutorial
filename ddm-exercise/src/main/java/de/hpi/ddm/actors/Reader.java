@@ -32,6 +32,11 @@ public class Reader extends AbstractLoggingActor {
 	public static class ReadMessage implements Serializable {
 		private static final long serialVersionUID = -3254147511955012292L;
 	}
+
+	@Data
+	public static class StopReadMessage implements Serializable {
+		private static final long serialVersionUID = -1254147518255012831L;
+	}
 	
 	/////////////////
 	// Actor State //
@@ -71,6 +76,7 @@ public class Reader extends AbstractLoggingActor {
 	public Receive createReceive() {
 		return receiveBuilder()
 				.match(ReadMessage.class, this::handle)
+				.match(StopReadMessage.class, this::handle)
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -79,6 +85,12 @@ public class Reader extends AbstractLoggingActor {
 		this.sender().tell(new Master.BatchMessage(new ArrayList<>(this.buffer)), this.self());
 		
 		this.read();
+	}
+
+
+	private void handle(StopReadMessage message) {
+		this.buffer.clear();
+		this.log().info("Reached end of File stopped reading");
 	}
 	
 	private void read() throws Exception {

@@ -15,6 +15,7 @@ import akka.cluster.ClusterEvent.CurrentClusterState;
 import akka.cluster.ClusterEvent.MemberRemoved;
 import akka.cluster.ClusterEvent.MemberUp;
 import de.hpi.ddm.structures.BloomFilter;
+import de.hpi.ddm.structures.PasswordWorkpackage;
 import de.hpi.ddm.systems.MasterSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,7 +49,12 @@ public class Worker extends AbstractLoggingActor {
 		private static final long serialVersionUID = 8343040942748609598L;
 		private BloomFilter welcomeData;
 	}
-	
+	@Data
+	public static class WorkpackageMessage implements Serializable {
+		private static final long serialVersionUID = -1237147518255012838L;
+		private final PasswordWorkpackage passwordWorkpackage;
+
+	}
 	/////////////////
 	// Actor State //
 	/////////////////
@@ -86,9 +92,11 @@ public class Worker extends AbstractLoggingActor {
 				.match(MemberRemoved.class, this::handle)
 				.match(WelcomeMessage.class, this::handle)
 				// TODO: Add further messages here to share work between Master and Worker actors
+				.match(WorkpackageMessage.class, this::handle)
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
+
 
 	private void handle(CurrentClusterState message) {
 		message.getMembers().forEach(member -> {
@@ -121,8 +129,20 @@ public class Worker extends AbstractLoggingActor {
 	private void handle(WelcomeMessage message) {
 		final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
 		this.log().info("WelcomeMessage with " + message.getWelcomeData().getSizeInMB() + " MB data received in " + transmissionTime + " ms.");
+
+
+		this.getContext()
+				.actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME)
+				.tell(new Master.NextMessage(), this.self());
 	}
-	
+
+
+	private void handle(WorkpackageMessage workpackageMessage) {
+		this.log().info("Received Work!");
+	}
+
+
+
 	private String hash(String characters) {
 		try {
 			MessageDigest digest = MessageDigest.getInstance("SHA-256");

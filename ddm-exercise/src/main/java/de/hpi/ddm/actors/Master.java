@@ -11,6 +11,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.Terminated;
 import de.hpi.ddm.structures.BloomFilter;
+import de.hpi.ddm.structures.PasswordWorkpackage;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -33,11 +34,13 @@ public class Master extends AbstractLoggingActor {
 		this.workers = new ArrayList<>();
 		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
 		this.welcomeData = welcomeData;
+		this.passwordWorkpackageList = new ArrayList<>();
 	}
 
 	////////////////////
 	// Actor Messages //
 	////////////////////
+
 
 	@Data
 	public static class StartMessage implements Serializable {
@@ -54,7 +57,11 @@ public class Master extends AbstractLoggingActor {
 	public static class RegistrationMessage implements Serializable {
 		private static final long serialVersionUID = 3303081601659723997L;
 	}
-	
+
+	@Data
+	public static class NextMessage implements Serializable {
+		private static final long serialVersionUID = -20374816448627627L;
+	}
 	/////////////////
 	// Actor State //
 	/////////////////
@@ -64,6 +71,7 @@ public class Master extends AbstractLoggingActor {
 	private final List<ActorRef> workers;
 	private final ActorRef largeMessageProxy;
 	private final BloomFilter welcomeData;
+	private final List<PasswordWorkpackage> passwordWorkpackageList;
 
 	private long startTime;
 	
@@ -87,10 +95,17 @@ public class Master extends AbstractLoggingActor {
 				.match(BatchMessage.class, this::handle)
 				.match(Terminated.class, this::handle)
 				.match(RegistrationMessage.class, this::handle)
+				.match(NextMessage.class, this::handle)
 				// TODO: Add further messages here to share work between Master and Worker actors
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
+
+
+
+	// TODO: Terminated-Message & PoisonPill Impl
+
+
 
 	protected void handle(StartMessage message) {
 		this.startTime = System.currentTimeMillis();
@@ -99,6 +114,27 @@ public class Master extends AbstractLoggingActor {
 	}
 	
 	protected void handle(BatchMessage message) {
+
+
+		// TODO: Stop fetching lines from the Reader once an empty BatchMessage was received; we have seen all data then
+		if (message.getLines().isEmpty()) {
+			this.reader.tell(new Reader.StopReadMessage(), this.self());
+		}
+		else{
+			for (String[] line : message.getLines()) {
+				int anzHints=line.length-5;
+				String[] hints= new String[anzHints];
+				if (anzHints - 5 >= 0) System.arraycopy(line, 5, hints, 0, anzHints - 5);
+				PasswordWorkpackage passwordWorkpackage= new PasswordWorkpackage(Integer.parseInt(line[0]),line[1],line[2].toCharArray(), Integer.parseInt(line[3]),line[4],hints);
+				passwordWorkpackageList.add(passwordWorkpackage);
+			}
+
+			// TODO: Fetch further lines from the Reader
+			this.reader.tell(new Reader.ReadMessage(), this.self());
+		}
+
+
+
 		
 		// TODO: This is where the task begins:
 		// - The Master received the first batch of input records.
@@ -114,24 +150,27 @@ public class Master extends AbstractLoggingActor {
 		// b) Memory reduction: If the batches are processed sequentially, the memory consumption can be kept constant; if the entire input is read into main memory, the memory consumption scales at least linearly with the input size.
 		// - It is your choice, how and if you want to make use of the batched inputs. Simply aggregate all batches in the Master and start the processing afterwards, if you wish.
 
-		// TODO: Stop fetching lines from the Reader once an empty BatchMessage was received; we have seen all data then
-		if (message.getLines().isEmpty()) {
-			this.terminate();
-			return;
-		}
-		
-		// TODO: Process the lines with the help of the worker actors
-		for (String[] line : message.getLines())
-			this.log().error("Need help processing: {}", Arrays.toString(line));
+
+
 		
 		// TODO: Send (partial) results to the Collector
 		this.collector.tell(new Collector.CollectMessage("If I had results, this would be one."), this.self());
 		
-		// TODO: Fetch further lines from the Reader
-		this.reader.tell(new Reader.ReadMessage(), this.self());
+
 		
 	}
-	
+
+
+	private void handle(NextMessage message) {
+		if(!passwordWorkpackageList.isEmpty()){
+			PasswordWorkpackage workpackage = passwordWorkpackageList.remove(0);
+			Worker.WorkpackageMessage workpackageMessage=new Worker.WorkpackageMessage(workpackage);
+			this.sender().tell(workpackageMessage,this.self());
+		}
+		// TODO: handle Empty List
+	}
+
+
 	protected void terminate() {
 		this.collector.tell(new Collector.PrintMessage(), this.self());
 		
