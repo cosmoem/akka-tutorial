@@ -9,11 +9,7 @@ import com.typesafe.config.ConfigFactory;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.cluster.Cluster;
-import de.hpi.ddm.actors.Collector;
-import de.hpi.ddm.actors.Master;
-import de.hpi.ddm.actors.Reader;
-import de.hpi.ddm.actors.Reaper;
-import de.hpi.ddm.actors.Worker;
+import de.hpi.ddm.actors.*;
 import de.hpi.ddm.configuration.Configuration;
 import de.hpi.ddm.singletons.ConfigurationSingleton;
 import scala.concurrent.Await;
@@ -49,10 +45,14 @@ public class MasterSystem {
 		Cluster.get(system).registerOnMemberUp(new Runnable() {
 			@Override
 			public void run() {
-				for (int i = 0; i < c.getNumWorkers(); i++)
+				for (int i = 0; i < c.getNumWorkers(); i++) {
 					system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
-				
-				if (!c.isStartPaused())
+				}
+				for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
+					system.actorOf(PermutationWorker.props(), PermutationWorker.DEFAULT_NAME + i);
+				}
+
+					if (!c.isStartPaused())
 					system.actorSelection("/user/" + Master.DEFAULT_NAME).tell(new Master.StartMessage(), ActorRef.noSender());
 			}
 		});

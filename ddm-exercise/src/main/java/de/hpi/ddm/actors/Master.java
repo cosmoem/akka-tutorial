@@ -1,9 +1,11 @@
 package de.hpi.ddm.actors;
 
 import java.io.Serializable;
+import java.sql.Struct;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
@@ -12,6 +14,7 @@ import akka.actor.Props;
 import akka.actor.Terminated;
 import de.hpi.ddm.structures.BloomFilter;
 import de.hpi.ddm.structures.PasswordWorkpackage;
+import de.hpi.ddm.structures.PermutationWorkPackage;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -32,9 +35,14 @@ public class Master extends AbstractLoggingActor {
 		this.reader = reader;
 		this.collector = collector;
 		this.workers = new ArrayList<>();
+		this.permutationWorkers = new ArrayList<>();
 		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
 		this.welcomeData = welcomeData;
 		this.passwordWorkpackageList = new ArrayList<>();
+		this.permutations = new HashMap<>();
+		this.permutationWorkPackages = new ArrayList<>();
+		this.numberOfAwaitedPermutationResults = 0;
+		this.numberOfHintsPerPassword = 0;
 	}
 
 	////////////////////
@@ -59,9 +67,21 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	@Data
-	public static class NextMessage implements Serializable {
+	public static class WorkerWorkRequestMessage implements Serializable {
 		private static final long serialVersionUID = -20374816448627627L;
 	}
+
+	@Data
+	public static class PermutationWorkerWorkRequestMessage implements Serializable {
+		private static final long serialVersionUID = -63434816465427697L;
+	}
+
+	@Data @NoArgsConstructor @AllArgsConstructor
+	public static class PermutationResultMessage implements Serializable {
+		private static final long serialVersionUID = -72434659866542342L;
+		private Map<String, String> permutationsPart;
+	}
+
 	/////////////////
 	// Actor State //
 	/////////////////
@@ -69,11 +89,15 @@ public class Master extends AbstractLoggingActor {
 	private final ActorRef reader;
 	private final ActorRef collector;
 	private final List<ActorRef> workers;
+	private final List<ActorRef> permutationWorkers;
 	private final ActorRef largeMessageProxy;
 	private final BloomFilter welcomeData;
 	private final List<PasswordWorkpackage> passwordWorkpackageList;
-
+	private final HashMap<String, String> permutations;
+	private int numberOfAwaitedPermutationResults;
+	private final List<PermutationWorkPackage> permutationWorkPackages;
 	private long startTime;
+	private int numberOfHintsPerPassword;
 	
 	/////////////////////
 	// Actor Lifecycle //
@@ -95,7 +119,9 @@ public class Master extends AbstractLoggingActor {
 				.match(BatchMessage.class, this::handle)
 				.match(Terminated.class, this::handle)
 				.match(RegistrationMessage.class, this::handle)
-				.match(NextMessage.class, this::handle)
+				.match(WorkerWorkRequestMessage.class, this::handle)
+				.match(PermutationWorkerWorkRequestMessage.class, this::handle)
+				.match(PermutationResultMessage.class, this::handle)
 				// TODO: Add further messages here to share work between Master and Worker actors
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
@@ -114,8 +140,6 @@ public class Master extends AbstractLoggingActor {
 	}
 	
 	protected void handle(BatchMessage message) {
-
-
 		// TODO: Stop fetching lines from the Reader once an empty BatchMessage was received; we have seen all data then
 		if (message.getLines().isEmpty()) {
 			this.reader.tell(new Reader.StopReadMessage(), this.self());
@@ -127,6 +151,23 @@ public class Master extends AbstractLoggingActor {
 				if (anzHints - 5 >= 0) System.arraycopy(line, 5, hints, 0, anzHints);
 				PasswordWorkpackage passwordWorkpackage= new PasswordWorkpackage(Integer.parseInt(line[0]),line[1],line[2], Integer.parseInt(line[3]),line[4],hints);
 				passwordWorkpackageList.add(passwordWorkpackage);
+			}
+
+			if(permutations.isEmpty() && this.numberOfAwaitedPermutationResults==0) {
+				this.log().info("Creating Permutation Workers...");
+				PasswordWorkpackage workpackage = passwordWorkpackageList.get(0);
+				this.numberOfHintsPerPassword = workpackage.getHints().length;
+				String passwordCharacters = workpackage.getPasswordCharacters();
+				for(char character: passwordCharacters.toCharArray()) {
+					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
+					this.permutationWorkPackages.add(permutationWorkPackage);
+				}
+				// TODO wrong config leads to system crash
+				for (ActorRef permutationWorker: this.permutationWorkers) {
+					PermutationWorker.WorkMessage workMessage = new PermutationWorker.WorkMessage(this.permutationWorkPackages.remove(0));
+					permutationWorker.tell(workMessage, this.self());
+					this.numberOfAwaitedPermutationResults++;
+				}
 			}
 
 			// TODO: Fetch further lines from the Reader
@@ -160,16 +201,19 @@ public class Master extends AbstractLoggingActor {
 		
 	}
 
-
-	private void handle(NextMessage message) {
-		if(!passwordWorkpackageList.isEmpty()){
+	private void handle(WorkerWorkRequestMessage message) {
+		if (!passwordWorkpackageList.isEmpty()) {
 			PasswordWorkpackage workpackage = passwordWorkpackageList.remove(0);
-			Worker.WorkpackageMessage workpackageMessage=new Worker.WorkpackageMessage(workpackage);
-			this.sender().tell(workpackageMessage,this.self());
+			Worker.WorkpackageMessage workpackageMessage = new Worker.WorkpackageMessage(workpackage);
+			this.sender().tell(workpackageMessage, this.self());
 		}
 		// TODO: handle Empty List
 	}
 
+	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
+		PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
+		this.sender().tell(new PermutationWorker.WorkMessage(permutationWorkPackage), this.self());
+	}
 
 	protected void terminate() {
 		this.collector.tell(new Collector.PrintMessage(), this.self());
@@ -190,7 +234,14 @@ public class Master extends AbstractLoggingActor {
 
 	protected void handle(RegistrationMessage message) {
 		this.context().watch(this.sender());
-		this.workers.add(this.sender());
+		String name = this.sender().path().name();
+		String type = name.substring(0, name.length() - 1);
+		if(type.equals(Worker.DEFAULT_NAME)) {
+			this.workers.add(this.sender());
+		} else if(type.equals(PermutationWorker.DEFAULT_NAME)) {
+			this.permutationWorkers.add(this.sender());
+		}
+
 		this.log().info("Registered {}", this.sender());
 		
 		this.largeMessageProxy.tell(new LargeMessageProxy.LargeMessage<>(new Worker.WelcomeMessage(this.welcomeData), this.sender()), this.self());
@@ -202,5 +253,37 @@ public class Master extends AbstractLoggingActor {
 		this.context().unwatch(message.getActor());
 		this.workers.remove(message.getActor());
 		this.log().info("Unregistered {}", message.getActor());
+	}
+
+	private void handle(PermutationResultMessage message) {
+		this.log().info("Received Permutation Result.");
+		this.permutations.putAll(message.permutationsPart);
+		this.numberOfAwaitedPermutationResults--;
+		if(this.numberOfAwaitedPermutationResults==0) {
+			this.sender().tell(new Worker.PermutationMessage(this.permutations), this.self());
+			if (!passwordWorkpackageList.isEmpty()) {
+				PasswordWorkpackage workpackage = passwordWorkpackageList.remove(0);
+				Worker.WorkpackageMessage workpackageMessage = new Worker.WorkpackageMessage(workpackage);
+				this.sender().tell(workpackageMessage, this.self());
+			}
+			/*
+			boolean bruteforceWorkerAlreadySpawned = false;
+			scala.collection.Iterator<ActorRef> iterator = context().children().iterator();
+			while(iterator.hasNext()) {
+				ActorRef child = iterator.next();
+				String name = child.path().name();
+				if(name.substring(0, name.length() - 1).equals(BruteForceWorker.DEFAULT_NAME)) {
+					bruteforceWorkerAlreadySpawned = true;
+					break;
+				}
+			}
+
+			if(!bruteforceWorkerAlreadySpawned) {
+				int numberOfWorkers = this.numberOfHintsPerPassword/2;
+				for (int i = 0; i < numberOfWorkers; i++) {
+					this.context().actorOf(BruteForceWorker.props(), BruteForceWorker.DEFAULT_NAME + i);
+				}
+			}*/
+		}
 	}
 }

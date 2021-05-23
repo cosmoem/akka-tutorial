@@ -106,7 +106,7 @@ public class PermutationWorker extends AbstractLoggingActor {
         }
         Map<String, String> permutationsWithoutHead = new HashMap<>();
         parallelHeapPermutation(charsWithoutHead, charsWithoutHead.length, charsWithoutHead.length-1, permutationsWithoutHead, head);
-        this.sender().tell(new Worker.PermutationResultMessage(permutationsWithoutHead), this.self());
+        this.sender().tell(new Master.PermutationResultMessage(permutationsWithoutHead), this.self());
     }
 
     private void handle(ClusterEvent.CurrentClusterState message) {
@@ -140,8 +140,6 @@ public class PermutationWorker extends AbstractLoggingActor {
     private void handle(Worker.WelcomeMessage message) {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
         this.log().info("WelcomeMessage with " + message.getWelcomeData().getSizeInMB() + " MB data received in " + transmissionTime + " ms.");
-        ActorRef parent = this.context().parent();
-        parent.tell(new Worker.NextMessage(), this.self());
     }
 
     private void parallelHeapPermutation(char[] passwordChars, int charLength, int desiredPermutationLength, Map<String, String> outputMap, char head) {
