@@ -8,30 +8,33 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
-import de.hpi.ddm.structures.BruteForceWorkPackage;
-import de.hpi.ddm.structures.HintResult;
-
+import de.hpi.ddm.structures.PermutationWorkPackage;
 import de.hpi.ddm.systems.MasterSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.util.*;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 
-public class BruteForceWorker extends AbstractLoggingActor {
+public class PermutationWorker extends AbstractLoggingActor {
 
     ////////////////////////
     // Actor Construction //
     ////////////////////////
 
-    public static final String DEFAULT_NAME = "brute-force-worker";
+    public static final String DEFAULT_NAME = "permutation-worker";
 
     public static Props props() {
-        return Props.create(BruteForceWorker.class);
+        return Props.create(PermutationWorker.class);
     }
 
-    public BruteForceWorker() {
+    public PermutationWorker() {
         this.cluster = Cluster.get(this.context().system());
         this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
     }
@@ -41,10 +44,9 @@ public class BruteForceWorker extends AbstractLoggingActor {
     ////////////////////
 
     @Data @NoArgsConstructor @AllArgsConstructor
-    public static class HintMessage implements Serializable {
-        private static final long serialVersionUID = 7356980942734604738L;
-        private BruteForceWorkPackage workpackage;
-        private Map<String, String> permutations;
+    public static class WorkMessage implements Serializable {
+        private static final long serialVersionUID = -6345481666862325L;
+        private PermutationWorkPackage permutationWorkPackage;
     }
 
     /////////////////
@@ -84,11 +86,28 @@ public class BruteForceWorker extends AbstractLoggingActor {
                 .match(ClusterEvent.MemberRemoved.class, this::handle)
                 .match(Worker.WelcomeMessage.class, this::handle)
                 // TODO: Add further messages here to share work between Master and Worker actors
-                .match(HintMessage.class, this::handle)
+                .match(WorkMessage.class, this::handle)
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
                 .build();
     }
 
+    private void handle(WorkMessage message) {
+        this.log().info("Received Work Package.");
+        PermutationWorkPackage permutationWorkPackage = message.permutationWorkPackage;
+        char[] passwordChars = permutationWorkPackage.getPasswordChars().toCharArray();
+        char head = permutationWorkPackage.getHead();
+        char[] charsWithoutHead = new char[passwordChars.length-1];
+        int index = 0;
+        for (char c: passwordChars) {
+            if(!(c == head)) {
+                charsWithoutHead[index] = c;
+                index++;
+            }
+        }
+        Map<String, String> permutationsWithoutHead = new HashMap<>();
+        parallelHeapPermutation(charsWithoutHead, charsWithoutHead.length, charsWithoutHead.length-1, permutationsWithoutHead, head);
+        this.sender().tell(new Worker.PermutationResultMessage(permutationsWithoutHead), this.self());
+    }
 
     private void handle(ClusterEvent.CurrentClusterState message) {
         message.getMembers().forEach(member -> {
@@ -121,45 +140,46 @@ public class BruteForceWorker extends AbstractLoggingActor {
     private void handle(Worker.WelcomeMessage message) {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
         this.log().info("WelcomeMessage with " + message.getWelcomeData().getSizeInMB() + " MB data received in " + transmissionTime + " ms.");
-        this.context().parent().tell(Worker.NextMessage.class, this.self());
+        ActorRef parent = this.context().parent();
+        parent.tell(new Worker.NextMessage(), this.self());
     }
 
-    private void handle(HintMessage message) { ;
-        BruteForceWorkPackage workpackage = message.getWorkpackage();
-        char[] passwordChars = workpackage.getPasswordChars().toCharArray();
-        String hint = workpackage.getHint();
-        int passwordId = workpackage.getPasswordId();
-
-        this.log().info("Received Hint {} for Password {}", hint, passwordId);
-
-        String bruteforcedHint = bruteforceHint(message.getPermutations(), hint);
-        char letter = solveHint(passwordChars, bruteforcedHint);
-        HintResult hintResult = new HintResult(passwordId, letter, hint);
-        this.sender().tell(new Worker.BruteForceResultMessage(hintResult), this.self());
-    }
-
-    private String bruteforceHint(Map<String, String> permutations, String encodedHint) {
-        for (String key : permutations.keySet()) {
-            if(permutations.get(key).equals(encodedHint)) {
-                return key;
-            }
+    private void parallelHeapPermutation(char[] passwordChars, int charLength, int desiredPermutationLength, Map<String, String> outputMap, char head) {
+        if (charLength == 1) {
+            String correctLength = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
+            String hashed = hash(head + correctLength);
+            outputMap.put(correctLength, hashed);
         }
-        return "";
+
+        for (int i = 0; i < charLength; i++) {
+            parallelHeapPermutation(passwordChars, charLength - 1, desiredPermutationLength, outputMap, head);
+            // If size is odd, swap first and last element
+            char temp;
+            if (charLength % 2 == 1) {
+                temp = passwordChars[0];
+                passwordChars[0] = passwordChars[charLength - 1];
+            }
+            // If size is even, swap i-th and last element
+            else {
+                temp = passwordChars[i];
+                passwordChars[i] = passwordChars[charLength - 1];
+            }
+            passwordChars[charLength - 1] = temp;
+        }
     }
 
-    private char solveHint(char[] passwordChars, String decodedHint) {
-        for (char passwordChar: passwordChars) {
-            boolean contains = false;
-            for (char decodedCharacter: decodedHint.toCharArray()) {
-                if(decodedCharacter == passwordChar) {
-                    contains = true;
-                    break;
-                }
+    private String hash(String characters) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashedBytes = digest.digest(String.valueOf(characters).getBytes(StandardCharsets.UTF_8));
+            StringBuilder stringBuffer = new StringBuilder();
+            for (byte hashedByte : hashedBytes) {
+                stringBuffer.append(Integer.toString((hashedByte & 0xff) + 0x100, 16).substring(1));
             }
-            if(!contains) {
-                return passwordChar;
-            }
+            return stringBuffer.toString();
         }
-        return '0';
+        catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e.getMessage());
+        }
     }
 }
