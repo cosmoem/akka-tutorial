@@ -8,6 +8,7 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent.CurrentClusterState;
 import akka.cluster.ClusterEvent.MemberRemoved;
 import akka.cluster.ClusterEvent.MemberUp;
+import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.*;
 import de.hpi.ddm.systems.MasterSystem;
 import lombok.AllArgsConstructor;
@@ -32,9 +33,8 @@ public class Worker extends AbstractLoggingActor {
 		this.cluster = Cluster.get(this.context().system());
 		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
 		this.bruteForceWorkPackages = new ArrayList<>();
-		this.numberOfHintsPerPassword = 0;
 		this.hintResults = new HashMap<>();
-		this.permutations = new HashMap<>();
+		this.bruteforceWorkers = new ArrayList<>();
 	}
 	
 	////////////////////
@@ -63,12 +63,6 @@ public class Worker extends AbstractLoggingActor {
 		private HintResult hintResult;
 	}
 
-	@Data @NoArgsConstructor @AllArgsConstructor
-	public static class PermutationMessage implements Serializable {
-		private static final long serialVersionUID = -83744659694042645L;
-		private HashMap<String, String> permutations;
-	}
-
 
 	/////////////////
 	// Actor State //
@@ -78,11 +72,9 @@ public class Worker extends AbstractLoggingActor {
 	private final Cluster cluster;
 	private final ActorRef largeMessageProxy;
 	private long registrationTime;
-	private int numberOfAwaitedPermutationResults;
 	private final List<BruteForceWorkPackage> bruteForceWorkPackages;
 	private final Map<Integer, List<HintResult>> hintResults;
-	private final int numberOfHintsPerPassword;
-	private Map<String, String> permutations;
+	private final List<ActorRef> bruteforceWorkers;
 	
 	/////////////////////
 	// Actor Lifecycle //
@@ -115,7 +107,6 @@ public class Worker extends AbstractLoggingActor {
 				.match(WorkpackageMessage.class, this::handle)
 				.match(NextMessage.class, this::handle)
 				.match(BruteForceResultMessage.class, this::handle)
-				.match(PermutationMessage.class, this::handle)
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -164,12 +155,20 @@ public class Worker extends AbstractLoggingActor {
 			BruteForceWorkPackage bruteForceWorkPackage = new BruteForceWorkPackage(workpackage.getId(), workpackage.getPasswordCharacters(), hint);
 			bruteForceWorkPackages.add(bruteForceWorkPackage);
 		}
+		if(this.bruteforceWorkers.isEmpty()) {
+			int numberOfWorkers = workpackage.getHints().length/3;
+			for(int i=0; i<numberOfWorkers; i++) {
+				// TODO supervision?!!!! parent!!!
+				ActorRef actor = this.context().system().actorOf(BruteForceWorker.props(), BruteForceWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" +  i);
+				this.bruteforceWorkers.add(actor);
+			}
+		}
 	}
 
 	private void handle(NextMessage message) {
 		BruteForceWorkPackage workpackage = bruteForceWorkPackages.remove(0);
 		// TODO check if permutations empty ?
-		BruteForceWorker.HintMessage hintMessage = new BruteForceWorker.HintMessage(workpackage, permutations);
+		BruteForceWorker.HintMessage hintMessage = new BruteForceWorker.HintMessage(workpackage);
 		this.sender().tell(hintMessage, this.self());
 	}
 
@@ -178,9 +177,8 @@ public class Worker extends AbstractLoggingActor {
 		HintResult hintResult = message.hintResult;
 		this.hintResults.putIfAbsent(hintResult.getPasswordId(), new ArrayList<>());
 		this.hintResults.get(hintResult.getPasswordId()).add(hintResult);
-	}
-
-	private void handle(PermutationMessage message) {
-		this.permutations = message.getPermutations();
+		// TODO duplicates?
+		// TODO pw cracking worker
+		// TODO get next workpackage from master
 	}
 }

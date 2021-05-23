@@ -106,7 +106,11 @@ public class PermutationWorker extends AbstractLoggingActor {
         }
         Map<String, String> permutationsWithoutHead = new HashMap<>();
         parallelHeapPermutation(charsWithoutHead, charsWithoutHead.length, charsWithoutHead.length-1, permutationsWithoutHead, head);
+        //this.largeMessageProxy.tell(new LargeMessageProxy.LargeMessage<>(new Master.PermutationResultMessage(permutationsWithoutHead), this.sender()), this.self());
         this.sender().tell(new Master.PermutationResultMessage(permutationsWithoutHead), this.self());
+        permutationsWithoutHead = null;
+        this.log().info("Running GC... Current Memory: {}", Runtime.getRuntime().totalMemory());
+        System.gc();
     }
 
     private void handle(ClusterEvent.CurrentClusterState message) {
@@ -147,6 +151,8 @@ public class PermutationWorker extends AbstractLoggingActor {
             String correctLength = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
             String hashed = hash(head + correctLength);
             outputMap.put(correctLength, hashed);
+            correctLength = null;
+            hashed = null;
         }
 
         for (int i = 0; i < charLength; i++) {

@@ -1,13 +1,11 @@
 package de.hpi.ddm.actors;
 
-import akka.actor.AbstractLoggingActor;
-import akka.actor.ActorRef;
-import akka.actor.PoisonPill;
-import akka.actor.Props;
+import akka.actor.*;
 import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
+import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.BruteForceWorkPackage;
 import de.hpi.ddm.structures.HintResult;
 
@@ -44,7 +42,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
     public static class HintMessage implements Serializable {
         private static final long serialVersionUID = 7356980942734604738L;
         private BruteForceWorkPackage workpackage;
-        private Map<String, String> permutations;
+        //private Map<String, String> permutations;
     }
 
     /////////////////
@@ -121,7 +119,10 @@ public class BruteForceWorker extends AbstractLoggingActor {
     private void handle(Worker.WelcomeMessage message) {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
         this.log().info("WelcomeMessage with " + message.getWelcomeData().getSizeInMB() + " MB data received in " + transmissionTime + " ms.");
-        this.context().parent().tell(Worker.NextMessage.class, this.self());
+        // TODO workaround! change!!! fix!!!!!
+        String parentName = this.self().path().name().substring(DEFAULT_NAME.length() + 1, this.self().path().name().length() - 2);
+        ActorSelection parent = this.getContext().actorSelection(this.masterSystem.address() + "/user/" + parentName);
+        parent.tell(new Worker.NextMessage(), this.self());
     }
 
     private void handle(HintMessage message) { ;
@@ -132,7 +133,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
 
         this.log().info("Received Hint {} for Password {}", hint, passwordId);
 
-        String bruteforcedHint = bruteforceHint(message.getPermutations(), hint);
+        String bruteforcedHint = bruteforceHint(PermutationSingleton.getPermutations(), hint);
         char letter = solveHint(passwordChars, bruteforcedHint);
         HintResult hintResult = new HintResult(passwordId, letter, hint);
         this.sender().tell(new Worker.BruteForceResultMessage(hintResult), this.self());

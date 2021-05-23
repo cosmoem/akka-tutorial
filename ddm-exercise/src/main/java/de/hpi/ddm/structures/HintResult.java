@@ -3,12 +3,12 @@ package de.hpi.ddm.structures;
 public class HintResult {
     final private int passwordId;
     final private char letter;
-    final private String decodedHint;
+    final private String encodedHint;
 
-    public HintResult(int passwordId, char letter, String decodedHint) {
+    public HintResult(int passwordId, char letter, String encodedHint) {
         this.passwordId = passwordId;
         this.letter = letter;
-        this.decodedHint = decodedHint;
+        this.encodedHint = encodedHint;
     }
 
     public int getPasswordId() {
@@ -19,7 +19,7 @@ public class HintResult {
         return letter;
     }
 
-    public String getDecodedHint() {
-        return decodedHint;
+    public String getEncodedHint() {
+        return encodedHint;
     }
 }

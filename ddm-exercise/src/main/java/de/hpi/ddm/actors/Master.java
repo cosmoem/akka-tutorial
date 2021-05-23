@@ -12,6 +12,7 @@ import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.Terminated;
+import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.BloomFilter;
 import de.hpi.ddm.structures.PasswordWorkpackage;
 import de.hpi.ddm.structures.PermutationWorkPackage;
@@ -98,6 +99,7 @@ public class Master extends AbstractLoggingActor {
 	private final List<PermutationWorkPackage> permutationWorkPackages;
 	private long startTime;
 	private int numberOfHintsPerPassword;
+	private static PermutationSingleton permutationSingleton;
 	
 	/////////////////////
 	// Actor Lifecycle //
@@ -259,12 +261,16 @@ public class Master extends AbstractLoggingActor {
 		this.log().info("Received Permutation Result.");
 		this.permutations.putAll(message.permutationsPart);
 		this.numberOfAwaitedPermutationResults--;
-		if(this.numberOfAwaitedPermutationResults==0) {
-			this.sender().tell(new Worker.PermutationMessage(this.permutations), this.self());
+		if(this.numberOfAwaitedPermutationResults == 0) {
+			HashMap<String, String> mapClone = (HashMap<String, String>) this.permutations.clone();
+			PermutationSingleton.setPermutations(permutations);
+			//his.sender().tell(new Worker.PermutationMessage(), this.self());
 			if (!passwordWorkpackageList.isEmpty()) {
 				PasswordWorkpackage workpackage = passwordWorkpackageList.remove(0);
 				Worker.WorkpackageMessage workpackageMessage = new Worker.WorkpackageMessage(workpackage);
-				this.sender().tell(workpackageMessage, this.self());
+				for(ActorRef worker : workers) {
+					worker.tell(workpackageMessage, this.self());
+				}
 			}
 			/*
 			boolean bruteforceWorkerAlreadySpawned = false;
