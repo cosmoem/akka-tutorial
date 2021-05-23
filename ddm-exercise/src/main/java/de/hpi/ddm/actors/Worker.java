@@ -2,9 +2,13 @@ package de.hpi.ddm.actors;
 
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import akka.actor.*;
 import akka.cluster.Cluster;
@@ -35,6 +39,7 @@ public class Worker extends AbstractLoggingActor {
 	public Worker() {
 		this.cluster = Cluster.get(this.context().system());
 		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
+		this.permutations = new HashMap<>();
 	}
 	
 	////////////////////
@@ -59,6 +64,7 @@ public class Worker extends AbstractLoggingActor {
 	private final Cluster cluster;
 	private final ActorRef largeMessageProxy;
 	private long registrationTime;
+	private Map<String, String> permutations;
 	
 	/////////////////////
 	// Actor Lifecycle //
@@ -134,12 +140,65 @@ public class Worker extends AbstractLoggingActor {
 
 	private void handle(WorkpackageMessage message) {
 		PasswordWorkpackage workpackage = message.getPasswordWorkpackage();
+		if(permutations.isEmpty()) {
+			//char[] test = {'a', 'b', 'c'};
+			//heapPermutation(test, test.length, 2, permutations);
+			char[] passwordCharacters = workpackage.getPasswordCharacters().toCharArray();
+			heapPermutation(passwordCharacters, passwordCharacters.length, workpackage.getPasswordLength(), permutations);
+		}
 		int numberOfWorkers = workpackage.getHints().length/3;
 		this.log().info("Received Work!");
 		for (int i = 0; i < numberOfWorkers; i++) {
 			ActorRef actor = this.context().actorOf(BruteForceWorker.props(), BruteForceWorker.DEFAULT_NAME + i);
-			BruteForceWorker.HintMessage hintMessage = new BruteForceWorker.HintMessage(workpackage, i);
+			BruteForceWorker.HintMessage hintMessage = new BruteForceWorker.HintMessage(workpackage, permutations, i);
 			actor.tell(hintMessage, this.self());
 		}
 	}
+
+
+
+	private String hash(String characters) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] hashedBytes = digest.digest(String.valueOf(characters).getBytes(StandardCharsets.UTF_8));
+			StringBuilder stringBuffer = new StringBuilder();
+			for (byte hashedByte : hashedBytes) {
+				stringBuffer.append(Integer.toString((hashedByte & 0xff) + 0x100, 16).substring(1));
+			}
+			return stringBuffer.toString();
+		}
+		catch (NoSuchAlgorithmException e) {
+			throw new RuntimeException(e.getMessage());
+		}
+	}
+
+	// Generating all permutations of an array using Heap's Algorithm
+	// https://en.wikipedia.org/wiki/Heap's_algorithm
+	// https://www.geeksforgeeks.org/heaps-algorithm-for-generating-permutations/
+	private void heapPermutation(char[] chars, int charLength, int desiredPermutationLength, Map<String, String> outputMap) {
+		// If size is 1, store the obtained permutation
+		if (charLength == 1) {
+			String correctLength = new String(Arrays.copyOf(chars, desiredPermutationLength));
+			String hashed = hash(correctLength);
+			outputMap.put(correctLength, hashed);
+		}
+
+		for (int i = 0; i < charLength; i++) {
+			heapPermutation(chars, charLength - 1, desiredPermutationLength, outputMap);
+			// If size is odd, swap first and last element
+			char temp;
+			if (charLength % 2 == 1) {
+				temp = chars[0];
+				chars[0] = chars[charLength - 1];
+			}
+			// If size is even, swap i-th and last element
+			else {
+				temp = chars[i];
+				chars[i] = chars[charLength - 1];
+			}
+			chars[charLength - 1] = temp;
+		}
+	}
+
+	private void permutations(char[] chars, int charLength, int desiredPermutationLength, Map<String, String> outputMap)
 }

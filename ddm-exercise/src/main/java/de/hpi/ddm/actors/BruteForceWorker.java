@@ -15,12 +15,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 public class BruteForceWorker extends AbstractLoggingActor {
 
@@ -47,6 +42,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
     public static class HintMessage implements Serializable {
         private static final long serialVersionUID = 7356980942734604738L;
         private PasswordWorkpackage workpackage;
+        private Map<String, String> permutations;
         private int hintNumber;
     }
 
@@ -129,57 +125,40 @@ public class BruteForceWorker extends AbstractLoggingActor {
     private void handle(HintMessage message) {
         int hintNumber = message.getHintNumber();
         PasswordWorkpackage workpackage = message.getWorkpackage();
-
+        char[] passwordChars = message.getWorkpackage().getPasswordCharacters().toCharArray();
         String hint = workpackage.getHints()[hintNumber];
-        int hintLength = workpackage.getPasswordLength()-1;
-        String passwordChars = workpackage.getPasswordCharacters();
 
-        this.log().info("Received Hint {}, {}, Chars: {}", hintNumber, workpackage.getName(), passwordChars);
-        List<String> permutations = new ArrayList<>();
-        heapPermutation(passwordChars.toCharArray(), passwordChars.toCharArray().length, hintLength, permutations);
+        this.log().info("Received Hint {}, {}", hintNumber, workpackage.getName());
+
+        //String encoded = "f45de51cdef30991551e41e882dd7b5404799648a0a00753f44fc966e6153fc1";
+
+        String bruteforcedHint = bruteforceHint(message.getPermutations(), hint);
+        char solvedHint = solveHint(passwordChars, bruteforcedHint);
         int a = 5;
     }
 
-    private String hash(String characters) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashedBytes = digest.digest(String.valueOf(characters).getBytes("UTF-8"));
-
-            StringBuffer stringBuffer = new StringBuffer();
-            for (int i = 0; i < hashedBytes.length; i++) {
-                stringBuffer.append(Integer.toString((hashedBytes[i] & 0xff) + 0x100, 16).substring(1));
+    private String bruteforceHint(Map<String, String> permutations, String encodedHint) {
+        for (String key : permutations.keySet()) {
+            if(permutations.get(key).equals(encodedHint)) {
+                return key;
             }
-            return stringBuffer.toString();
         }
-        catch (NoSuchAlgorithmException | UnsupportedEncodingException e) {
-            throw new RuntimeException(e.getMessage());
-        }
+        return "";
     }
 
-    // Generating all permutations of an array using Heap's Algorithm
-    // https://en.wikipedia.org/wiki/Heap's_algorithm
-    // https://www.geeksforgeeks.org/heaps-algorithm-for-generating-permutations/
-    private void heapPermutation(char[] a, int size, int n, List<String> l) {
-        // If size is 1, store the obtained permutation
-        if (size == 1)
-            l.add(new String(a));
-
-        for (int i = 0; i < size; i++) {
-            heapPermutation(a, size - 1, n, l);
-
-            // If size is odd, swap first and last element
-            if (size % 2 == 1) {
-                char temp = a[0];
-                a[0] = a[size - 1];
-                a[size - 1] = temp;
+    private char solveHint(char[] passwordChars, String decodedHint) {
+        for (char passwordChar: passwordChars) {
+            boolean contains = false;
+            for (char decodedCharacter: decodedHint.toCharArray()) {
+                if(decodedCharacter == passwordChar) {
+                    contains = true;
+                    break;
+                }
             }
-
-            // If size is even, swap i-th and last element
-            else {
-                char temp = a[i];
-                a[i] = a[size - 1];
-                a[size - 1] = temp;
+            if(!contains) {
+                return passwordChar;
             }
         }
+        return '0';
     }
 }
