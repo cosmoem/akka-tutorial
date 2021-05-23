@@ -165,9 +165,9 @@ public class Master extends AbstractLoggingActor {
 					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
 					this.permutationWorkPackages.add(permutationWorkPackage);
 				}
-				// TODO wrong config leads probably to system crash
 				for (ActorRef permutationWorker: this.permutationWorkers) {
-					PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(this.permutationWorkPackages.remove(0));
+					PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
+					PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
 					permutationWorker.tell(permutationWorkMessage, this.self());
 					this.numberOfAwaitedPermutationResults++;
 				}
