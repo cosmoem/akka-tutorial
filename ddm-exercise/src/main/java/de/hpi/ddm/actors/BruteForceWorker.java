@@ -130,15 +130,13 @@ public class BruteForceWorker extends AbstractLoggingActor {
         int hintNumber = message.getHintNumber();
         PasswordWorkpackage workpackage = message.getWorkpackage();
 
-
-
         String hint = workpackage.getHints()[hintNumber];
         int hintLength = workpackage.getPasswordLength()-1;
-        char[] passwordChars = workpackage.getPasswordCharacters();
+        String passwordChars = workpackage.getPasswordCharacters();
 
-        this.log().info("Received Hint {}, {}, Chars: {}", hintNumber, workpackage.getName(), Arrays.toString(passwordChars));
+        this.log().info("Received Hint {}, {}, Chars: {}", hintNumber, workpackage.getName(), passwordChars);
         List<String> permutations = new ArrayList<>();
-        heapPermutation(passwordChars, hintLength, 10, permutations);
+        heapPermutation(passwordChars.toCharArray(), hintLength, passwordChars.toCharArray().length, permutations);
         int a = 5;
     }
 

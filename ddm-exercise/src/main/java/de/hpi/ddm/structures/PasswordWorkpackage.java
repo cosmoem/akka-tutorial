@@ -4,12 +4,12 @@ public class PasswordWorkpackage {
 
     private int id;
     private String name;
-    private char [] passwordCharacters;
+    private String passwordCharacters;
     private int passwordLength;
     private String password;
     private String [] hints;
 
-    public PasswordWorkpackage(int id, String name, char [] passwordCharacters, int passwordLength, String password, String[] hints) {
+    public PasswordWorkpackage(int id, String name, String passwordCharacters, int passwordLength, String password, String[] hints) {
         this.id = id;
         this.name = name;
         this.passwordCharacters = passwordCharacters;
@@ -27,7 +27,7 @@ public class PasswordWorkpackage {
         return name;
     }
 
-    public char[] getPasswordCharacters() {
+    public String getPasswordCharacters() {
         return passwordCharacters;
     }
 

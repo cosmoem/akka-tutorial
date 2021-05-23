@@ -125,7 +125,7 @@ public class Master extends AbstractLoggingActor {
 				int anzHints=line.length-5;
 				String[] hints= new String[anzHints];
 				if (anzHints - 5 >= 0) System.arraycopy(line, 5, hints, 0, anzHints);
-				PasswordWorkpackage passwordWorkpackage= new PasswordWorkpackage(Integer.parseInt(line[0]),line[1],line[2].toCharArray(), Integer.parseInt(line[3]),line[4],hints);
+				PasswordWorkpackage passwordWorkpackage= new PasswordWorkpackage(Integer.parseInt(line[0]),line[1],line[2], Integer.parseInt(line[3]),line[4],hints);
 				passwordWorkpackageList.add(passwordWorkpackage);
 			}
 
