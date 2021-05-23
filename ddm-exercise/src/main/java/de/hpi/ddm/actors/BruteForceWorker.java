@@ -2,7 +2,6 @@ package de.hpi.ddm.actors;
 
 import akka.actor.*;
 import akka.cluster.Cluster;
-import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import de.hpi.ddm.singletons.PermutationSingleton;
@@ -16,6 +15,10 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.util.*;
+
+import static akka.cluster.ClusterEvent.*;
+import static de.hpi.ddm.actors.Master.*;
+import static de.hpi.ddm.actors.Worker.*;
 
 public class BruteForceWorker extends AbstractLoggingActor {
 
@@ -41,8 +44,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
     @Data @NoArgsConstructor @AllArgsConstructor
     public static class HintMessage implements Serializable {
         private static final long serialVersionUID = 7356980942734604738L;
-        private BruteForceWorkPackage workpackage;
-        //private Map<String, String> permutations;
+        private BruteForceWorkPackage bruteForceWorkPackage;
     }
 
     /////////////////
@@ -61,8 +63,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
     @Override
     public void preStart() {
         Reaper.watchWithDefaultReaper(this);
-
-        this.cluster.subscribe(this.self(), ClusterEvent.MemberUp.class, ClusterEvent.MemberRemoved.class);
+        this.cluster.subscribe(this.self(), MemberUp.class, MemberRemoved.class);
     }
 
     @Override
@@ -77,67 +78,55 @@ public class BruteForceWorker extends AbstractLoggingActor {
     @Override
     public Receive createReceive() {
         return receiveBuilder()
-                .match(ClusterEvent.CurrentClusterState.class, this::handle)
-                .match(ClusterEvent.MemberUp.class, this::handle)
-                .match(ClusterEvent.MemberRemoved.class, this::handle)
-                .match(Worker.WelcomeMessage.class, this::handle)
-                // TODO: Add further messages here to share work between Master and Worker actors
+                .match(CurrentClusterState.class, this::handle)
+                .match(MemberUp.class, this::handle)
+                .match(MemberRemoved.class, this::handle)
+                .match(WelcomeMessage.class, this::handle)
                 .match(HintMessage.class, this::handle)
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
                 .build();
     }
 
-
-    private void handle(ClusterEvent.CurrentClusterState message) {
+    private void handle(CurrentClusterState message) {
         message.getMembers().forEach(member -> {
             if (member.status().equals(MemberStatus.up()))
                 this.register(member);
         });
     }
 
-    private void handle(ClusterEvent.MemberUp message) {
+    private void handle(MemberUp message) {
         this.register(message.member());
     }
 
-    private void register(Member member) {
-        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
-            this.masterSystem = member;
-
-            this.getContext()
-                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
-                    .tell(new Master.RegistrationMessage(), this.self());
-
-            this.registrationTime = System.currentTimeMillis();
-        }
-    }
-
-    private void handle(ClusterEvent.MemberRemoved message) {
+    private void handle(MemberRemoved message) {
         if (this.masterSystem.equals(message.member()))
             this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
 
-    private void handle(Worker.WelcomeMessage message) {
+    private void handle(WelcomeMessage message) {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
-        this.log().info("WelcomeMessage with " + message.getWelcomeData().getSizeInMB() + " MB data received in " + transmissionTime + " ms.");
-        // TODO workaround! change!!! fix!!!!!
-        String parentName = this.self().path().name().substring(DEFAULT_NAME.length() + 1, this.self().path().name().length() - 2);
-        ActorSelection parent = this.getContext().actorSelection(this.masterSystem.address() + "/user/" + parentName);
-        parent.tell(new Worker.NextMessage(), this.self());
+        int sizeInMB = message.getWelcomeData().getSizeInMB();
+        this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
+        this.context().parent().tell(new BruteForceWorkerWorkRequestMessage(), this.self());
     }
 
-    private void handle(HintMessage message) { ;
-        BruteForceWorkPackage workpackage = message.getWorkpackage();
-        char[] passwordChars = workpackage.getPasswordChars().toCharArray();
-        String hint = workpackage.getHint();
-        int passwordId = workpackage.getPasswordId();
+    private void handle(HintMessage message) {
+        final BruteForceWorkPackage bruteForceWorkPackage = message.getBruteForceWorkPackage();
+        final char[] passwordChars = bruteForceWorkPackage.getPasswordChars().toCharArray();
+        final String hint = bruteForceWorkPackage.getHint();
+        final int passwordId = bruteForceWorkPackage.getPasswordId();
 
         this.log().info("Received Hint {} for Password {}", hint, passwordId);
 
-        String bruteforcedHint = bruteforceHint(PermutationSingleton.getPermutations(), hint);
-        char letter = solveHint(passwordChars, bruteforcedHint);
+        String decodedHint = bruteforceHint(PermutationSingleton.getPermutations(), hint);
+        char letter = solveHint(passwordChars, decodedHint);
         HintResult hintResult = new HintResult(passwordId, letter, hint);
-        this.sender().tell(new Worker.BruteForceResultMessage(hintResult), this.self());
+        this.sender().tell(new BruteForceResultMessage(hintResult), this.self());
     }
+
+    ////////////////////
+    // Helper Methods //
+    ////////////////////
 
     private String bruteforceHint(Map<String, String> permutations, String encodedHint) {
         for (String key : permutations.keySet()) {
@@ -152,15 +141,27 @@ public class BruteForceWorker extends AbstractLoggingActor {
         for (char passwordChar: passwordChars) {
             boolean contains = false;
             for (char decodedCharacter: decodedHint.toCharArray()) {
-                if(decodedCharacter == passwordChar) {
+                if (decodedCharacter == passwordChar) {
                     contains = true;
                     break;
                 }
             }
-            if(!contains) {
+            if (!contains) {
                 return passwordChar;
             }
         }
         return '0';
+    }
+
+    private void register(Member member) {
+        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
+            this.masterSystem = member;
+
+            this.getContext()
+                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
+                    .tell(new RegistrationMessage(), this.self());
+
+            this.registrationTime = System.currentTimeMillis();
+        }
     }
 }

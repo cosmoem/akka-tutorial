@@ -5,7 +5,7 @@ public class HintResult {
     final private char letter;
     final private String encodedHint;
 
-    public HintResult(int passwordId, char letter, String encodedHint) {
+    public HintResult(final int passwordId, final char letter, final String encodedHint) {
         this.passwordId = passwordId;
         this.letter = letter;
         this.encodedHint = encodedHint;

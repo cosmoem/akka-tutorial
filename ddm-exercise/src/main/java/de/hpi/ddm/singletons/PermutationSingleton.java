@@ -1,6 +1,5 @@
 package de.hpi.ddm.singletons;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 

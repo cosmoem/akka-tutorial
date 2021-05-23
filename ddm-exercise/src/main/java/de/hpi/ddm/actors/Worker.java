@@ -8,7 +8,8 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent.CurrentClusterState;
 import akka.cluster.ClusterEvent.MemberRemoved;
 import akka.cluster.ClusterEvent.MemberUp;
-import de.hpi.ddm.singletons.PermutationSingleton;
+import de.hpi.ddm.configuration.Configuration;
+import de.hpi.ddm.singletons.ConfigurationSingleton;
 import de.hpi.ddm.structures.*;
 import de.hpi.ddm.systems.MasterSystem;
 import lombok.AllArgsConstructor;
@@ -16,6 +17,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
+
+import static de.hpi.ddm.actors.BruteForceWorker.*;
 
 public class Worker extends AbstractLoggingActor {
 
@@ -32,9 +35,9 @@ public class Worker extends AbstractLoggingActor {
 	public Worker() {
 		this.cluster = Cluster.get(this.context().system());
 		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
+		this.bruteforceWorkers = new ArrayList<>();
 		this.bruteForceWorkPackages = new ArrayList<>();
 		this.hintResults = new HashMap<>();
-		this.bruteforceWorkers = new ArrayList<>();
 	}
 	
 	////////////////////
@@ -47,13 +50,13 @@ public class Worker extends AbstractLoggingActor {
 		private BloomFilter welcomeData;
 	}
 	@Data @NoArgsConstructor @AllArgsConstructor
-	public static class WorkpackageMessage implements Serializable {
+	public static class PasswordWorkPackageMessage implements Serializable {
 		private static final long serialVersionUID = -1237147518255012838L;
 		private PasswordWorkpackage passwordWorkpackage;
 	}
 
 	@Data
-	public static class NextMessage implements Serializable {
+	public static class BruteForceWorkerWorkRequestMessage implements Serializable {
 		private static final long serialVersionUID = -82654819868676347L;
 	}
 
@@ -71,11 +74,12 @@ public class Worker extends AbstractLoggingActor {
 	private Member masterSystem;
 	private final Cluster cluster;
 	private final ActorRef largeMessageProxy;
-	private long registrationTime;
+	private final List<ActorRef> bruteforceWorkers;
 	private final List<BruteForceWorkPackage> bruteForceWorkPackages;
 	private final Map<Integer, List<HintResult>> hintResults;
-	private final List<ActorRef> bruteforceWorkers;
-	
+	private long registrationTime;
+	private final Configuration c = ConfigurationSingleton.get();
+
 	/////////////////////
 	// Actor Lifecycle //
 	/////////////////////
@@ -103,9 +107,8 @@ public class Worker extends AbstractLoggingActor {
 				.match(MemberUp.class, this::handle)
 				.match(MemberRemoved.class, this::handle)
 				.match(WelcomeMessage.class, this::handle)
-				// TODO: Add further messages here to share work between Master and Worker actors
-				.match(WorkpackageMessage.class, this::handle)
-				.match(NextMessage.class, this::handle)
+				.match(PasswordWorkPackageMessage.class, this::handle)
+				.match(BruteForceWorkerWorkRequestMessage.class, this::handle)
 				.match(BruteForceResultMessage.class, this::handle)
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
@@ -121,18 +124,6 @@ public class Worker extends AbstractLoggingActor {
 	private void handle(MemberUp message) {
 		this.register(message.member());
 	}
-
-	private void register(Member member) {
-		if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
-			this.masterSystem = member;
-			
-			this.getContext()
-				.actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
-				.tell(new Master.RegistrationMessage(), this.self());
-			
-			this.registrationTime = System.currentTimeMillis();
-		}
-	}
 	
 	private void handle(MemberRemoved message) {
 		if (this.masterSystem.equals(message.member()))
@@ -141,44 +132,63 @@ public class Worker extends AbstractLoggingActor {
 	
 	private void handle(WelcomeMessage message) {
 		final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
-		this.log().info("WelcomeMessage with " + message.getWelcomeData().getSizeInMB() + " MB data received in " + transmissionTime + " ms.");
-		/*this.getContext()
-				.actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME)
-				.tell(new Master.WorkerWorkRequestMessage(), this.self());*/
+		int sizeInMB = message.getWelcomeData().getSizeInMB();
+		this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
 	}
 
-	private void handle(WorkpackageMessage message) {
-		PasswordWorkpackage workpackage = message.getPasswordWorkpackage();
-		this.log().info("Received Work!");
-		String[] hints = workpackage.getHints();
-		for(String hint: hints) {
-			BruteForceWorkPackage bruteForceWorkPackage = new BruteForceWorkPackage(workpackage.getId(), workpackage.getPasswordCharacters(), hint);
-			bruteForceWorkPackages.add(bruteForceWorkPackage);
+	private void handle(PasswordWorkPackageMessage message) {
+		this.log().info("Received Password Work Package from Master.");
+		PasswordWorkpackage passwordWorkpackage = message.getPasswordWorkpackage();
+		String[] hints = passwordWorkpackage.getHints();
+		for (String hint: hints) {
+			BruteForceWorkPackage bruteForceWorkPackage = new BruteForceWorkPackage(
+					passwordWorkpackage.getId(),
+					passwordWorkpackage.getPasswordCharacters(),
+					hint
+			);
+			this.bruteForceWorkPackages.add(bruteForceWorkPackage);
 		}
-		if(this.bruteforceWorkers.isEmpty()) {
-			int numberOfWorkers = workpackage.getHints().length/3;
-			for(int i=0; i<numberOfWorkers; i++) {
-				// TODO supervision?!!!! parent!!!
-				ActorRef actor = this.context().system().actorOf(BruteForceWorker.props(), BruteForceWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" +  i);
+		if (this.bruteforceWorkers.isEmpty()) {
+			for (int i = 0; i < c.getNumBruteForceWorkers(); i++) {
+				// TODO supervision?!!!!
+				ActorRef actor = this.context().actorOf(
+						BruteForceWorker.props(),
+						BruteForceWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" +  i
+				);
 				this.bruteforceWorkers.add(actor);
 			}
 		}
 	}
 
-	private void handle(NextMessage message) {
-		BruteForceWorkPackage workpackage = bruteForceWorkPackages.remove(0);
+	private void handle(BruteForceWorkerWorkRequestMessage message) {
+		BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
 		// TODO check if permutations empty ?
-		BruteForceWorker.HintMessage hintMessage = new BruteForceWorker.HintMessage(workpackage);
+		HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
 		this.sender().tell(hintMessage, this.self());
 	}
 
 	private void handle(BruteForceResultMessage message) {
-		this.log().info("Received Hint Result.");
+		this.log().info("Received Hint Result from {}.", this.sender().path().name());
 		HintResult hintResult = message.hintResult;
 		this.hintResults.putIfAbsent(hintResult.getPasswordId(), new ArrayList<>());
 		this.hintResults.get(hintResult.getPasswordId()).add(hintResult);
-		// TODO duplicates?
 		// TODO pw cracking worker
 		// TODO get next workpackage from master
+	}
+
+	////////////////////
+	// Helper Methods //
+	////////////////////
+
+	private void register(Member member) {
+		if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
+			this.masterSystem = member;
+
+			this.getContext()
+					.actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
+					.tell(new Master.RegistrationMessage(), this.self());
+
+			this.registrationTime = System.currentTimeMillis();
+		}
 	}
 }

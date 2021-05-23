@@ -22,6 +22,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import static de.hpi.ddm.actors.Master.*;
+
 public class PermutationWorker extends AbstractLoggingActor {
 
     ////////////////////////
@@ -44,7 +46,7 @@ public class PermutationWorker extends AbstractLoggingActor {
     ////////////////////
 
     @Data @NoArgsConstructor @AllArgsConstructor
-    public static class WorkMessage implements Serializable {
+    public static class PermutationWorkMessage implements Serializable {
         private static final long serialVersionUID = -6345481666862325L;
         private PermutationWorkPackage permutationWorkPackage;
     }
@@ -65,7 +67,6 @@ public class PermutationWorker extends AbstractLoggingActor {
     @Override
     public void preStart() {
         Reaper.watchWithDefaultReaper(this);
-
         this.cluster.subscribe(this.self(), ClusterEvent.MemberUp.class, ClusterEvent.MemberRemoved.class);
     }
 
@@ -85,32 +86,15 @@ public class PermutationWorker extends AbstractLoggingActor {
                 .match(ClusterEvent.MemberUp.class, this::handle)
                 .match(ClusterEvent.MemberRemoved.class, this::handle)
                 .match(Worker.WelcomeMessage.class, this::handle)
-                // TODO: Add further messages here to share work between Master and Worker actors
-                .match(WorkMessage.class, this::handle)
+                .match(PermutationWorkMessage.class, this::handle)
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
                 .build();
     }
 
-    private void handle(WorkMessage message) {
-        this.log().info("Received Work Package.");
-        PermutationWorkPackage permutationWorkPackage = message.permutationWorkPackage;
-        char[] passwordChars = permutationWorkPackage.getPasswordChars().toCharArray();
-        char head = permutationWorkPackage.getHead();
-        char[] charsWithoutHead = new char[passwordChars.length-1];
-        int index = 0;
-        for (char c: passwordChars) {
-            if(!(c == head)) {
-                charsWithoutHead[index] = c;
-                index++;
-            }
-        }
-        Map<String, String> permutationsWithoutHead = new HashMap<>();
-        parallelHeapPermutation(charsWithoutHead, charsWithoutHead.length, charsWithoutHead.length-1, permutationsWithoutHead, head);
-        //this.largeMessageProxy.tell(new LargeMessageProxy.LargeMessage<>(new Master.PermutationResultMessage(permutationsWithoutHead), this.sender()), this.self());
-        this.sender().tell(new Master.PermutationResultMessage(permutationsWithoutHead), this.self());
-        permutationsWithoutHead = null;
-        this.log().info("Running GC... Current Memory: {}", Runtime.getRuntime().totalMemory());
-        System.gc();
+    private void handle(Worker.WelcomeMessage message) {
+        final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
+        int sizeInMB = message.getWelcomeData().getSizeInMB();
+        this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
     }
 
     private void handle(ClusterEvent.CurrentClusterState message) {
@@ -124,35 +108,51 @@ public class PermutationWorker extends AbstractLoggingActor {
         this.register(message.member());
     }
 
-    private void register(Member member) {
-        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
-            this.masterSystem = member;
-
-            this.getContext()
-                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
-                    .tell(new Master.RegistrationMessage(), this.self());
-
-            this.registrationTime = System.currentTimeMillis();
-        }
-    }
-
     private void handle(ClusterEvent.MemberRemoved message) {
         if (this.masterSystem.equals(message.member()))
             this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
 
-    private void handle(Worker.WelcomeMessage message) {
-        final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
-        this.log().info("WelcomeMessage with " + message.getWelcomeData().getSizeInMB() + " MB data received in " + transmissionTime + " ms.");
+    private void handle(PermutationWorkMessage message) {
+        this.log().info("Received Permutation Work Package from {}.", this.sender().path().name());
+        PermutationWorkPackage permutationWorkPackage = message.permutationWorkPackage;
+        char[] passwordChars = permutationWorkPackage.getPasswordChars().toCharArray();
+        char head = permutationWorkPackage.getHead();
+        char[] charsWithoutHead = new char[passwordChars.length-1];
+        int index = 0;
+        for (char c: passwordChars) {
+            if(!(c == head)) {
+                charsWithoutHead[index] = c;
+                index++;
+            }
+        }
+        Map<String, String> permutationsWithoutHead = new HashMap<>();
+        parallelHeapPermutation(
+                charsWithoutHead,
+                charsWithoutHead.length,
+                charsWithoutHead.length-1,
+                permutationsWithoutHead,
+                head
+        );
+        //this.largeMessageProxy.tell(new LargeMessageProxy.LargeMessage<>(new Master.PermutationResultMessage(permutationsWithoutHead), this.sender()), this.self()); TODO
+        this.sender().tell(new PermutationResultMessage(permutationsWithoutHead), this.self());
     }
 
-    private void parallelHeapPermutation(char[] passwordChars, int charLength, int desiredPermutationLength, Map<String, String> outputMap, char head) {
+    ////////////////////
+    // Helper Methods //
+    ////////////////////
+
+    private void parallelHeapPermutation(
+            char[] passwordChars,
+            int charLength,
+            int desiredPermutationLength,
+            Map<String, String> outputMap,
+            char head
+    ) {
         if (charLength == 1) {
-            String correctLength = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
-            String hashed = hash(head + correctLength);
-            outputMap.put(correctLength, hashed);
-            correctLength = null;
-            hashed = null;
+            String correctLengthString = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
+            String hashed = hash(head + correctLengthString);
+            outputMap.put(correctLengthString, hashed);
         }
 
         for (int i = 0; i < charLength; i++) {
@@ -181,9 +181,20 @@ public class PermutationWorker extends AbstractLoggingActor {
                 stringBuffer.append(Integer.toString((hashedByte & 0xff) + 0x100, 16).substring(1));
             }
             return stringBuffer.toString();
-        }
-        catch (NoSuchAlgorithmException e) {
+        } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    private void register(Member member) {
+        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
+            this.masterSystem = member;
+
+            this.getContext()
+                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
+                    .tell(new RegistrationMessage(), this.self());
+
+            this.registrationTime = System.currentTimeMillis();
         }
     }
 }

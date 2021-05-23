@@ -41,38 +41,28 @@ public class MasterSystem {
 		ActorRef collector = system.actorOf(Collector.props(), Collector.DEFAULT_NAME);
 		
 		ActorRef master = system.actorOf(Master.props(reader, collector, c.generateWelcomeData()), Master.DEFAULT_NAME);
-		
-		Cluster.get(system).registerOnMemberUp(new Runnable() {
-			@Override
-			public void run() {
-				for (int i = 0; i < c.getNumWorkers(); i++) {
-					system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
-				}
-				for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
-					system.actorOf(PermutationWorker.props(), PermutationWorker.DEFAULT_NAME + i);
-				}
 
-					if (!c.isStartPaused())
-					system.actorSelection("/user/" + Master.DEFAULT_NAME).tell(new Master.StartMessage(), ActorRef.noSender());
+		Cluster.get(system).registerOnMemberUp(() -> {
+			for (int i = 0; i < c.getNumWorkers(); i++) {
+				system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
 			}
+			for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
+				system.actorOf(PermutationWorker.props(), PermutationWorker.DEFAULT_NAME + i);
+			}
+
+				if (!c.isStartPaused())
+				master.tell(new Master.StartMessage(), ActorRef.noSender());
 		});
 
-		Cluster.get(system).registerOnMemberRemoved(new Runnable() {
-			@Override
-			public void run() {
-				system.terminate();
-
-				new Thread() {
-					@Override
-					public void run() {
-						try {
-							Await.ready(system.whenTerminated(), Duration.create(10, TimeUnit.SECONDS));
-						} catch (Exception e) {
-							System.exit(-1);
-						}
-					}
-				}.start();
-			}
+		Cluster.get(system).registerOnMemberRemoved(() -> {
+			system.terminate();
+			new Thread(() -> {
+				try {
+					Await.ready(system.whenTerminated(), Duration.create(10, TimeUnit.SECONDS));
+				} catch (Exception e) {
+					System.exit(-1);
+				}
+			}).start();
 		});
 		
 		if (c.isStartPaused()) {
@@ -80,8 +70,7 @@ public class MasterSystem {
 			try (final Scanner scanner = new Scanner(System.in)) {
 				scanner.nextLine();
 			}
-			
-			system.actorSelection("/user/" + Master.DEFAULT_NAME).tell(new Master.StartMessage(), ActorRef.noSender());
+			master.tell(new Master.StartMessage(), ActorRef.noSender());
 		}
 	}
 }

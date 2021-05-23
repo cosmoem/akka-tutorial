@@ -4,7 +4,7 @@ public class PermutationWorkPackage {
     private final char head;
     private final String passwordChars;
 
-    public PermutationWorkPackage(char head, String passwordChars) {
+    public PermutationWorkPackage(final char head, final String passwordChars) {
         this.head = head;
         this.passwordChars = passwordChars;
     }

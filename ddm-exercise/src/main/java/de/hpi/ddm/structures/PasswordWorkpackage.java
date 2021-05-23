@@ -2,14 +2,21 @@ package de.hpi.ddm.structures;
 
 public class PasswordWorkpackage {
 
-    private int id;
-    private String name;
-    private String passwordCharacters;
-    private int passwordLength;
-    private String password;
-    private String [] hints;
+    private final int id;
+    private final String name;
+    private final String passwordCharacters;
+    private final int passwordLength;
+    private final String password;
+    private final String [] hints;
 
-    public PasswordWorkpackage(int id, String name, String passwordCharacters, int passwordLength, String password, String[] hints) {
+    public PasswordWorkpackage(
+            final int id,
+            final String name,
+            final String passwordCharacters,
+            final int passwordLength,
+            final String password,
+            final String[] hints
+    ) {
         this.id = id;
         this.name = name;
         this.passwordCharacters = passwordCharacters;

@@ -5,7 +5,7 @@ public class BruteForceWorkPackage {
     final private String passwordChars;
     final private String hint;
 
-    public BruteForceWorkPackage(int passwordId, String passwordChars, String hint) {
+    public BruteForceWorkPackage(final int passwordId, final String passwordChars, final String hint) {
         this.passwordId = passwordId;
         this.passwordChars = passwordChars;
         this.hint = hint;

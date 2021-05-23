@@ -1,7 +1,6 @@
 package de.hpi.ddm.actors;
 
 import java.io.Serializable;
-import java.sql.Struct;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,6 +19,10 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import static de.hpi.ddm.actors.LargeMessageProxy.*;
+import static de.hpi.ddm.actors.PermutationWorker.*;
+import static de.hpi.ddm.actors.Worker.*;
+
 public class Master extends AbstractLoggingActor {
 
 	////////////////////////
@@ -35,21 +38,19 @@ public class Master extends AbstractLoggingActor {
 	public Master(final ActorRef reader, final ActorRef collector, final BloomFilter welcomeData) {
 		this.reader = reader;
 		this.collector = collector;
+		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
 		this.workers = new ArrayList<>();
 		this.permutationWorkers = new ArrayList<>();
-		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
 		this.welcomeData = welcomeData;
-		this.passwordWorkpackageList = new ArrayList<>();
 		this.permutations = new HashMap<>();
+		this.passwordWorkPackages = new ArrayList<>();
 		this.permutationWorkPackages = new ArrayList<>();
 		this.numberOfAwaitedPermutationResults = 0;
-		this.numberOfHintsPerPassword = 0;
 	}
 
 	////////////////////
 	// Actor Messages //
 	////////////////////
-
 
 	@Data
 	public static class StartMessage implements Serializable {
@@ -89,17 +90,15 @@ public class Master extends AbstractLoggingActor {
 
 	private final ActorRef reader;
 	private final ActorRef collector;
+	private final ActorRef largeMessageProxy;
 	private final List<ActorRef> workers;
 	private final List<ActorRef> permutationWorkers;
-	private final ActorRef largeMessageProxy;
 	private final BloomFilter welcomeData;
-	private final List<PasswordWorkpackage> passwordWorkpackageList;
 	private final HashMap<String, String> permutations;
-	private int numberOfAwaitedPermutationResults;
+	private final List<PasswordWorkpackage> passwordWorkPackages;
 	private final List<PermutationWorkPackage> permutationWorkPackages;
+	private int numberOfAwaitedPermutationResults;
 	private long startTime;
-	private int numberOfHintsPerPassword;
-	private static PermutationSingleton permutationSingleton;
 	
 	/////////////////////
 	// Actor Lifecycle //
@@ -124,61 +123,60 @@ public class Master extends AbstractLoggingActor {
 				.match(WorkerWorkRequestMessage.class, this::handle)
 				.match(PermutationWorkerWorkRequestMessage.class, this::handle)
 				.match(PermutationResultMessage.class, this::handle)
-				// TODO: Add further messages here to share work between Master and Worker actors
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
 
-
-
-	// TODO: Terminated-Message & PoisonPill Impl
-
-
+	// TODO: Terminated-Message & PoisonPill Impl ?
 
 	protected void handle(StartMessage message) {
 		this.startTime = System.currentTimeMillis();
-		
 		this.reader.tell(new Reader.ReadMessage(), this.self());
 	}
 	
 	protected void handle(BatchMessage message) {
-		// TODO: Stop fetching lines from the Reader once an empty BatchMessage was received; we have seen all data then
+		// Stop fetching lines from the Reader once an empty BatchMessage was received; we have seen all data then
 		if (message.getLines().isEmpty()) {
 			this.reader.tell(new Reader.StopReadMessage(), this.self());
 		}
-		else{
+		else {
 			for (String[] line : message.getLines()) {
-				int anzHints=line.length-5;
-				String[] hints= new String[anzHints];
-				if (anzHints - 5 >= 0) System.arraycopy(line, 5, hints, 0, anzHints);
-				PasswordWorkpackage passwordWorkpackage= new PasswordWorkpackage(Integer.parseInt(line[0]),line[1],line[2], Integer.parseInt(line[3]),line[4],hints);
-				passwordWorkpackageList.add(passwordWorkpackage);
+				int numberOfHints = line.length-5;
+				String[] hints = new String[numberOfHints];
+				if (numberOfHints - 5 >= 0) {
+					System.arraycopy(line, 5, hints, 0, numberOfHints);
+				}
+				PasswordWorkpackage passwordWorkpackage = new PasswordWorkpackage(
+						Integer.parseInt(line[0]),
+						line[1],
+						line[2],
+						Integer.parseInt(line[3]),
+						line[4],
+						hints
+				);
+				this.passwordWorkPackages.add(passwordWorkpackage);
 			}
 
-			if(permutations.isEmpty() && this.numberOfAwaitedPermutationResults==0) {
+			if (this.permutations.isEmpty() && this.numberOfAwaitedPermutationResults == 0) {
 				this.log().info("Creating Permutation Workers...");
-				PasswordWorkpackage workpackage = passwordWorkpackageList.get(0);
-				this.numberOfHintsPerPassword = workpackage.getHints().length;
-				String passwordCharacters = workpackage.getPasswordCharacters();
-				for(char character: passwordCharacters.toCharArray()) {
+				PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(0);
+				String passwordCharacters = passwordWorkpackage.getPasswordCharacters();
+				for (char character: passwordCharacters.toCharArray()) {
 					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
 					this.permutationWorkPackages.add(permutationWorkPackage);
 				}
-				// TODO wrong config leads to system crash
+				// TODO wrong config leads probably to system crash
 				for (ActorRef permutationWorker: this.permutationWorkers) {
-					PermutationWorker.WorkMessage workMessage = new PermutationWorker.WorkMessage(this.permutationWorkPackages.remove(0));
-					permutationWorker.tell(workMessage, this.self());
+					PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(this.permutationWorkPackages.remove(0));
+					permutationWorker.tell(permutationWorkMessage, this.self());
 					this.numberOfAwaitedPermutationResults++;
 				}
 			}
 
-			// TODO: Fetch further lines from the Reader
+			// Fetch further lines from the Reader
 			this.reader.tell(new Reader.ReadMessage(), this.self());
 		}
 
-
-
-		
 		// TODO: This is where the task begins:
 		// - The Master received the first batch of input records.
 		// - To receive the next batch, we need to send another ReadMessage to the reader.
@@ -193,103 +191,80 @@ public class Master extends AbstractLoggingActor {
 		// b) Memory reduction: If the batches are processed sequentially, the memory consumption can be kept constant; if the entire input is read into main memory, the memory consumption scales at least linearly with the input size.
 		// - It is your choice, how and if you want to make use of the batched inputs. Simply aggregate all batches in the Master and start the processing afterwards, if you wish.
 
-
-
-		
 		// TODO: Send (partial) results to the Collector
 		this.collector.tell(new Collector.CollectMessage("If I had results, this would be one."), this.self());
-		
-
-		
 	}
 
-	private void handle(WorkerWorkRequestMessage message) {
-		if (!passwordWorkpackageList.isEmpty()) {
-			PasswordWorkpackage workpackage = passwordWorkpackageList.remove(0);
-			Worker.WorkpackageMessage workpackageMessage = new Worker.WorkpackageMessage(workpackage);
-			this.sender().tell(workpackageMessage, this.self());
-		}
-		// TODO: handle Empty List
-	}
-
-	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
-		PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
-		this.sender().tell(new PermutationWorker.WorkMessage(permutationWorkPackage), this.self());
-	}
-
-	protected void terminate() {
-		this.collector.tell(new Collector.PrintMessage(), this.self());
-		
-		this.reader.tell(PoisonPill.getInstance(), ActorRef.noSender());
-		this.collector.tell(PoisonPill.getInstance(), ActorRef.noSender());
-		
-		for (ActorRef worker : this.workers) {
-			this.context().unwatch(worker);
-			worker.tell(PoisonPill.getInstance(), ActorRef.noSender());
-		}
-		
-		this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
-		
-		long executionTime = System.currentTimeMillis() - this.startTime;
-		this.log().info("Algorithm finished in {} ms", executionTime);
-	}
-
-	protected void handle(RegistrationMessage message) {
-		this.context().watch(this.sender());
-		String name = this.sender().path().name();
-		String type = name.substring(0, name.length() - 1);
-		if(type.equals(Worker.DEFAULT_NAME)) {
-			this.workers.add(this.sender());
-		} else if(type.equals(PermutationWorker.DEFAULT_NAME)) {
-			this.permutationWorkers.add(this.sender());
-		}
-
-		this.log().info("Registered {}", this.sender());
-		
-		this.largeMessageProxy.tell(new LargeMessageProxy.LargeMessage<>(new Worker.WelcomeMessage(this.welcomeData), this.sender()), this.self());
-		
-		// TODO: Assign some work to registering workers. Note that the processing of the global task might have already started.
-	}
-	
 	protected void handle(Terminated message) {
 		this.context().unwatch(message.getActor());
 		this.workers.remove(message.getActor());
 		this.log().info("Unregistered {}", message.getActor());
 	}
 
+	protected void handle(RegistrationMessage message) {
+		this.context().watch(this.sender());
+		String name = this.sender().path().name();
+		String type = name.substring(0, name.length() - 1);
+		if (type.equals(Worker.DEFAULT_NAME)) {
+			this.workers.add(this.sender());
+		} else if (type.equals(PermutationWorker.DEFAULT_NAME)) {
+			this.permutationWorkers.add(this.sender());
+		}
+
+		this.log().info("Registered {}", this.sender());
+
+		WelcomeMessage welcomeMessage = new WelcomeMessage(this.welcomeData);
+		LargeMessage<WelcomeMessage> largeMessage = new LargeMessage<>(welcomeMessage, this.sender());
+		this.largeMessageProxy.tell(largeMessage, this.self());
+	}
+
+	private void handle(WorkerWorkRequestMessage message) {
+		// TODO: handle empty work package list
+		if (!this.passwordWorkPackages.isEmpty()) {
+			PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
+			this.sender().tell(new PasswordWorkPackageMessage(passwordWorkpackage), this.self());
+		}
+	}
+
+	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
+		PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
+		this.sender().tell(new PermutationWorkMessage(permutationWorkPackage), this.self());
+	}
+
 	private void handle(PermutationResultMessage message) {
-		this.log().info("Received Permutation Result.");
+		this.log().info("Received Permutation Result from {}.", this.sender().path().name());
 		this.permutations.putAll(message.permutationsPart);
 		this.numberOfAwaitedPermutationResults--;
-		if(this.numberOfAwaitedPermutationResults == 0) {
-			HashMap<String, String> mapClone = (HashMap<String, String>) this.permutations.clone();
+		if (this.numberOfAwaitedPermutationResults == 0) {
 			PermutationSingleton.setPermutations(permutations);
-			//his.sender().tell(new Worker.PermutationMessage(), this.self());
-			if (!passwordWorkpackageList.isEmpty()) {
-				PasswordWorkpackage workpackage = passwordWorkpackageList.remove(0);
-				Worker.WorkpackageMessage workpackageMessage = new Worker.WorkpackageMessage(workpackage);
-				for(ActorRef worker : workers) {
+			// TODO handle empty list
+			for(ActorRef worker : this.workers) {
+				if (!this.passwordWorkPackages.isEmpty()) {
+					PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
+					PasswordWorkPackageMessage workpackageMessage = new PasswordWorkPackageMessage(passwordWorkpackage);
 					worker.tell(workpackageMessage, this.self());
 				}
 			}
-			/*
-			boolean bruteforceWorkerAlreadySpawned = false;
-			scala.collection.Iterator<ActorRef> iterator = context().children().iterator();
-			while(iterator.hasNext()) {
-				ActorRef child = iterator.next();
-				String name = child.path().name();
-				if(name.substring(0, name.length() - 1).equals(BruteForceWorker.DEFAULT_NAME)) {
-					bruteforceWorkerAlreadySpawned = true;
-					break;
-				}
-			}
-
-			if(!bruteforceWorkerAlreadySpawned) {
-				int numberOfWorkers = this.numberOfHintsPerPassword/2;
-				for (int i = 0; i < numberOfWorkers; i++) {
-					this.context().actorOf(BruteForceWorker.props(), BruteForceWorker.DEFAULT_NAME + i);
-				}
-			}*/
 		}
+	}
+
+	////////////////////
+	// Helper Methods //
+	////////////////////
+
+	protected void terminate() {
+		this.collector.tell(new Collector.PrintMessage(), this.self());
+		this.reader.tell(PoisonPill.getInstance(), ActorRef.noSender());
+		this.collector.tell(PoisonPill.getInstance(), ActorRef.noSender());
+
+		for (ActorRef worker : this.workers) {
+			this.context().unwatch(worker);
+			worker.tell(PoisonPill.getInstance(), ActorRef.noSender());
+		}
+
+		this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
+
+		long executionTime = System.currentTimeMillis() - this.startTime;
+		this.log().info("Algorithm finished in {} ms", executionTime);
 	}
 }
