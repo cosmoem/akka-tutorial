@@ -241,8 +241,8 @@ public class Master extends AbstractLoggingActor {
 			for(ActorRef worker : this.workers) {
 				if (!this.passwordWorkPackages.isEmpty()) {
 					PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
-					PasswordWorkPackageMessage workpackageMessage = new PasswordWorkPackageMessage(passwordWorkpackage);
-					worker.tell(workpackageMessage, this.self());
+					PasswordWorkPackageMessage workPackageMessage = new PasswordWorkPackageMessage(passwordWorkpackage);
+					worker.tell(workPackageMessage, this.self());
 				}
 			}
 		}
