@@ -157,8 +157,9 @@ public class PermutationWorker extends AbstractLoggingActor {
     ) {
         if (charLength == 1) {
             String correctLengthString = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
-            String hashed = hash(head + correctLengthString);
-            outputMap.put(correctLengthString, hashed);
+            String permutation = head + correctLengthString;
+            String hashed = hash(permutation);
+            outputMap.put(permutation, hashed);
         }
 
         for (int i = 0; i < charLength; i++) {
