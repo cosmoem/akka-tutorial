@@ -22,11 +22,15 @@ public class DeadLetterActor extends AbstractLoggingActor {
                 .match(
                         DeadLetter.class,
                         msg -> {
-                            BytesMessage<?> message = (BytesMessage<?>) msg.message();
-                            message.getReceiver().tell(message, message.getSender());
-                            this.log().info("Rerouting dead letter from {} to {}.", msg.sender(), msg.sender());
+                            try {
+                                BytesMessage<?> message = (BytesMessage<?>) msg.message();
+                                message.getReceiver().tell(message, message.getSender());
+                                this.log().info("Rerouting dead letter from {} to {}.", message.getSender(), message.getReceiver());
+                            } catch (ClassCastException e) {
+                                this.log().info("Received unknown dead letter: \"{}\"", e.toString());
+                            }
+
                         })
-                .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
                 .build();
     }
 }
