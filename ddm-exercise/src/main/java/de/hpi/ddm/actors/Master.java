@@ -166,6 +166,7 @@ public class Master extends AbstractLoggingActor {
 				for (char character: passwordCharacters.toCharArray()) {
 					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
 					this.permutationWorkPackages.add(permutationWorkPackage);
+					this.numberOfAwaitedPermutationResults++;
 				}
 				this.permuationsReady = true;
 			}
@@ -230,7 +231,6 @@ public class Master extends AbstractLoggingActor {
 			PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
 			LargeMessage<PermutationWorkMessage> largeMessage = new LargeMessage<>(permutationWorkMessage, this.sender());
 			this.largeMessageProxy.tell(largeMessage, this.self());
-			this.numberOfAwaitedPermutationResults++;
 		}
 		// TODO empty list handling
 	}
