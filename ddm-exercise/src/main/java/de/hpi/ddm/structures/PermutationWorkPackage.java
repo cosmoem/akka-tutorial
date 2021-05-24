@@ -1,19 +1,15 @@
 package de.hpi.ddm.structures;
 
-public class PermutationWorkPackage {
-    private final char head;
-    private final String passwordChars;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    public PermutationWorkPackage(final char head, final String passwordChars) {
-        this.head = head;
-        this.passwordChars = passwordChars;
-    }
+import java.io.Serializable;
 
-    public char getHead() {
-        return head;
-    }
-
-    public String getPasswordChars() {
-        return passwordChars;
-    }
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class PermutationWorkPackage implements Serializable {
+    private char head;
+    private String passwordChars;
 }

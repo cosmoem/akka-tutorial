@@ -50,6 +50,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		private int messageLength;
 		private int offset; // TODO naming: offset? chunk number ? chunk position?? chunk offset?
 		private long messageId;
+		private Class<?> classType;
 	}
 
 	/////////////////
@@ -122,7 +123,10 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		ActorSelection receiverProxy = this.context().actorSelection(receiver.path().child(DEFAULT_NAME));
 
 		// Serialize to byte array
-		byte[] messageAsBytes = KryoPoolSingleton.get().toBytesWithClass(message);
+
+		KryoPool kryoPool = KryoPoolSingleton.get();
+		//boolean hasRegistration = kryoPool.hasRegistration(Worker.PasswordWorkPackageMessage.class);
+		byte[] messageAsBytes = kryoPool.toBytesWithClass(message);
 		final long messageId = createID();
 
 		// Send bytes chunk-wise to receiver proxy
@@ -131,7 +135,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 					messageAsBytes, index, Math.min(index + chunkedMessageSize, messageAsBytes.length)
 			);
 			BytesMessage<byte[]> messageChunk = chunkedBytesMessageCreator(
-					receiver, bytesChunk, index, messageId, messageAsBytes.length
+					receiver, bytesChunk, index, messageId, messageAsBytes.length, largeMessage.message.getClass()
 			);
 			receiverProxy.tell(messageChunk, sender);
 		}
@@ -161,7 +165,8 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			}
 
 			// Deserialize; Decoded Message = Original Message
-			Object decodedMessage = KryoPoolSingleton.get().fromBytes(destinationMessage, message.getClass());
+			KryoPool kryoPool = KryoPoolSingleton.get();
+			Object decodedMessage = kryoPool.fromBytes(destinationMessage, message.getClass());
 
 			// Send message to receiver
 			message.getReceiver().tell(decodedMessage, message.getSender());
@@ -182,7 +187,8 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			byte[] messageBytes,
 			int offset,
 			long messageId,
-			int messageLength
+			int messageLength,
+			Class<?> classType
 	) {
 		BytesMessage<byte[]> bytesMessage = new BytesMessage<>();
 		bytesMessage.receiver = receiver;
@@ -191,6 +197,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		bytesMessage.messageId = messageId;
 		bytesMessage.messageLength = messageLength;
 		bytesMessage.sender = this.sender();
+		bytesMessage.classType = classType;
 		return bytesMessage;
 	}
 }

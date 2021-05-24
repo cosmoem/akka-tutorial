@@ -20,14 +20,6 @@ public class KryoPoolSingleton {
 
 	static {
 		KryoInstantiator kryoInstantiator = new KryoInstantiator();
-		kryoInstantiator.setRegistrationRequired(false);
-		kryoInstantiator.withRegistrar((IKryoRegistrar) kryo -> {
-			kryo.setWarnUnregisteredClasses(true);
-			kryo.setRegistrationRequired(false);
-			kryo.register(PasswordWorkpackage.class);
-			kryo.register(Worker.WelcomeMessage.class);
-			kryo.register(Worker.PasswordWorkPackageMessage.class);
-		});
 		kryo = KryoPool.withByteArrayOutputStream(POOL_SIZE, kryoInstantiator);
 	}
 
