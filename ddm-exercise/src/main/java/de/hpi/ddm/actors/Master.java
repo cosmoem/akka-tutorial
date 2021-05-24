@@ -222,7 +222,9 @@ public class Master extends AbstractLoggingActor {
 
 	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
 		PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
-		this.sender().tell(new PermutationWorkMessage(permutationWorkPackage), this.self());
+		PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
+		LargeMessage<PermutationWorkMessage> largeMessage = new LargeMessage<>(permutationWorkMessage, this.self());
+		this.sender().tell(largeMessage, this.self());
 		this.numberOfAwaitedPermutationResults++;
 	}
 
