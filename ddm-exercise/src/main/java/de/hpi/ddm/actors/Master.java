@@ -42,7 +42,8 @@ public class Master extends AbstractLoggingActor {
 		this.workers = new ArrayList<>();
 		this.permutationWorkers = new ArrayList<>();
 		this.welcomeData = welcomeData;
-		this.permutations = new HashMap<>();
+		//this.permutations = new HashMap<>();
+		this.permuationsReady = false;
 		this.passwordWorkPackages = new ArrayList<>();
 		this.permutationWorkPackages = new ArrayList<>();
 		this.numberOfAwaitedPermutationResults = 0;
@@ -81,7 +82,8 @@ public class Master extends AbstractLoggingActor {
 	@Data @NoArgsConstructor @AllArgsConstructor
 	public static class PermutationResultMessage implements Serializable {
 		private static final long serialVersionUID = -72434659866542342L;
-		private Map<String, String> permutationsPart;
+		//private Map<String, String> permutationsPart;
+		private char head;
 	}
 
 	/////////////////
@@ -94,7 +96,8 @@ public class Master extends AbstractLoggingActor {
 	private final List<ActorRef> workers;
 	private final List<ActorRef> permutationWorkers;
 	private final BloomFilter welcomeData;
-	private final HashMap<String, String> permutations;
+	//private final HashMap<String, String> permutations;
+	private boolean permuationsReady;
 	private final List<PasswordWorkpackage> passwordWorkPackages;
 	private final List<PermutationWorkPackage> permutationWorkPackages;
 	private int numberOfAwaitedPermutationResults;
@@ -157,13 +160,14 @@ public class Master extends AbstractLoggingActor {
 				this.passwordWorkPackages.add(passwordWorkpackage);
 			}
 
-			if (this.permutations.isEmpty() && this.numberOfAwaitedPermutationResults == 0) {
+			if (!this.permuationsReady) {
 				PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(0);
 				String passwordCharacters = passwordWorkpackage.getPasswordCharacters();
 				for (char character: passwordCharacters.toCharArray()) {
 					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
 					this.permutationWorkPackages.add(permutationWorkPackage);
 				}
+				this.permuationsReady = true;
 			}
 
 			// Fetch further lines from the Reader
@@ -232,11 +236,11 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	private void handle(PermutationResultMessage message) {
-		this.log().info("Received Permutation Result from {}.", this.sender().path().name());
-		this.permutations.putAll(message.permutationsPart);
+		this.log().info("Received Permutation Result from {} for letter {}.", this.sender().path().name(), message.head);
+		//this.permutations.putAll(message.permutationsPart);
 		this.numberOfAwaitedPermutationResults--;
 		if (this.numberOfAwaitedPermutationResults == 0) {
-			PermutationSingleton.setPermutations(permutations);
+			//PermutationSingleton.setPermutations(permutations);
 			// TODO handle empty list
 			for(ActorRef worker : this.workers) {
 				if (!this.passwordWorkPackages.isEmpty()) {

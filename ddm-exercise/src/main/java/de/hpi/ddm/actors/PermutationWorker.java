@@ -8,6 +8,7 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
+import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.PermutationWorkPackage;
 import de.hpi.ddm.systems.MasterSystem;
 import lombok.AllArgsConstructor;
@@ -128,17 +129,18 @@ public class PermutationWorker extends AbstractLoggingActor {
                 index++;
             }
         }
-        Map<String, String> permutationsWithoutHead = new HashMap<>();
+        Map<String, String> permutationsPartialResult = new HashMap<>();
         parallelHeapPermutation(
                 charsWithoutHead,
                 charsWithoutHead.length,
                 charsWithoutHead.length-1,
-                permutationsWithoutHead,
+                permutationsPartialResult,
                 head
         );
-        PermutationResultMessage permutationResultMessage = new PermutationResultMessage(permutationsWithoutHead);
-        LargeMessage<PermutationResultMessage> largeMessage = new LargeMessage<>(permutationResultMessage, this.sender());
-        this.largeMessageProxy.tell(largeMessage, this.self());
+
+        PermutationSingleton.addPermutations(permutationsPartialResult);
+        PermutationResultMessage permutationResultMessage = new PermutationResultMessage(head);
+        this.sender().tell(permutationResultMessage, this.self());
         this.sender().tell(new PermutationWorkerWorkRequestMessage(), this.self());
     }
 
