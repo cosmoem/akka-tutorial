@@ -3,6 +3,8 @@ package de.hpi.ddm.systems;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
+import akka.actor.DeadLetter;
+import akka.actor.DeadLetterActorRef;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -41,6 +43,9 @@ public class MasterSystem {
 		ActorRef collector = system.actorOf(Collector.props(), Collector.DEFAULT_NAME);
 		
 		ActorRef master = system.actorOf(Master.props(reader, collector, c.generateWelcomeData()), Master.DEFAULT_NAME);
+
+		ActorRef actor = system.actorOf(DeadLetterActor.props(), DeadLetterActor.DEFAULT_NAME);
+		system.getEventStream().subscribe(actor, DeadLetter.class);
 
 		Cluster.get(system).registerOnMemberUp(() -> {
 			for (int i = 0; i < c.getNumWorkers(); i++) {
