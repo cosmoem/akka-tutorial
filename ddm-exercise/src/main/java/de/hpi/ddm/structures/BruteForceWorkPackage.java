@@ -1,25 +1,16 @@
 package de.hpi.ddm.structures;
 
-public class BruteForceWorkPackage {
-    final private int passwordId;
-    final private String passwordChars;
-    final private String hint;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    public BruteForceWorkPackage(final int passwordId, final String passwordChars, final String hint) {
-        this.passwordId = passwordId;
-        this.passwordChars = passwordChars;
-        this.hint = hint;
-    }
+import java.io.Serializable;
 
-    public int getPasswordId() {
-        return passwordId;
-    }
-
-    public String getHint() {
-        return hint;
-    }
-
-    public String getPasswordChars() {
-        return passwordChars;
-    }
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class BruteForceWorkPackage implements Serializable {
+    private int passwordId;
+    private String passwordChars;
+    private String hint;
 }

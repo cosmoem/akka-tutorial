@@ -1,25 +1,16 @@
 package de.hpi.ddm.structures;
 
-public class HintResult {
-    final private int passwordId;
-    final private char letter;
-    final private String encodedHint;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-    public HintResult(final int passwordId, final char letter, final String encodedHint) {
-        this.passwordId = passwordId;
-        this.letter = letter;
-        this.encodedHint = encodedHint;
-    }
+import java.io.Serializable;
 
-    public int getPasswordId() {
-        return passwordId;
-    }
-
-    public char getLetter() {
-        return letter;
-    }
-
-    public String getEncodedHint() {
-        return encodedHint;
-    }
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class HintResult implements Serializable {
+    private int passwordId;
+    private char letter;
+    private String encodedHint;
 }

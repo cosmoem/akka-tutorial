@@ -117,7 +117,7 @@ public class PermutationWorker extends AbstractLoggingActor {
     }
 
     private void handle(PermutationWorkMessage message) {
-        this.log().info("Received Permutation Work Package from {}.", this.sender().path().name());
+        this.log().info("Received Permutation Work Package from {} for letter {}.", this.sender().path().name(), message.getPermutationWorkPackage().getHead());
         PermutationWorkPackage permutationWorkPackage = message.permutationWorkPackage;
         char[] passwordChars = permutationWorkPackage.getPasswordChars().toCharArray();
         char head = permutationWorkPackage.getHead();
