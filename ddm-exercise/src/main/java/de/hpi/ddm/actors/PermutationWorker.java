@@ -139,6 +139,7 @@ public class PermutationWorker extends AbstractLoggingActor {
         PermutationResultMessage permutationResultMessage = new PermutationResultMessage(permutationsWithoutHead);
         LargeMessage<PermutationResultMessage> largeMessage = new LargeMessage<>(permutationResultMessage, this.sender());
         this.largeMessageProxy.tell(largeMessage, this.self());
+        this.sender().tell(new PermutationWorkerWorkRequestMessage(), this.self());
     }
 
     ////////////////////

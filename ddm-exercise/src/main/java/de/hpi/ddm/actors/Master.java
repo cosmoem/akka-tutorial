@@ -191,6 +191,7 @@ public class Master extends AbstractLoggingActor {
 	protected void handle(Terminated message) {
 		this.context().unwatch(message.getActor());
 		this.workers.remove(message.getActor());
+		this.permutationWorkers.remove(message.getActor());
 		this.log().info("Unregistered {}", message.getActor());
 	}
 
@@ -220,11 +221,14 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
-		PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
-		PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
-		LargeMessage<PermutationWorkMessage> largeMessage = new LargeMessage<>(permutationWorkMessage, this.sender());
-		this.largeMessageProxy.tell(largeMessage, this.self());
-		this.numberOfAwaitedPermutationResults++;
+		if(!this.permutationWorkPackages.isEmpty()) {
+			PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
+			PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
+			LargeMessage<PermutationWorkMessage> largeMessage = new LargeMessage<>(permutationWorkMessage, this.sender());
+			this.largeMessageProxy.tell(largeMessage, this.self());
+			this.numberOfAwaitedPermutationResults++;
+		}
+		// TODO empty list handling
 	}
 
 	private void handle(PermutationResultMessage message) {
