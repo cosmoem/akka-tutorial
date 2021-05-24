@@ -1,10 +1,16 @@
 package de.hpi.ddm.singletons;
 
+import akka.serialization.JavaSerializer;
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.pool.KryoFactory;
 import com.twitter.chill.IKryoRegistrar;
 import com.twitter.chill.KryoInstantiator;
 import com.twitter.chill.KryoPool;
+import de.hpi.ddm.actors.LargeMessageProxy;
 import de.hpi.ddm.actors.PermutationWorker;
+import de.hpi.ddm.actors.Worker;
+import de.hpi.ddm.structures.PasswordWorkpackage;
+import de.hpi.ddm.structures.PermutationWorkPackage;
 import org.objenesis.strategy.StdInstantiatorStrategy;
 
 public class KryoPoolSingleton {
@@ -14,9 +20,14 @@ public class KryoPoolSingleton {
 
 	static {
 		KryoInstantiator kryoInstantiator = new KryoInstantiator();
-		kryoInstantiator.withRegistrar(
-				(IKryoRegistrar) kryo -> kryo.register(PermutationWorker.PermutationWorkMessage.class, 1)
-		);
+		kryoInstantiator.setRegistrationRequired(false);
+		kryoInstantiator.withRegistrar((IKryoRegistrar) kryo -> {
+			kryo.setWarnUnregisteredClasses(true);
+			kryo.setRegistrationRequired(false);
+			kryo.register(PasswordWorkpackage.class);
+			kryo.register(Worker.WelcomeMessage.class);
+			kryo.register(Worker.PasswordWorkPackageMessage.class);
+		});
 		kryo = KryoPool.withByteArrayOutputStream(POOL_SIZE, kryoInstantiator);
 	}
 
