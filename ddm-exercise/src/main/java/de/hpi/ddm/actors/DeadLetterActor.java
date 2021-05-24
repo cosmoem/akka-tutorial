@@ -5,6 +5,8 @@ import akka.actor.DeadLetter;
 import akka.actor.Props;
 import lombok.NoArgsConstructor;
 
+import de.hpi.ddm.actors.LargeMessageProxy.*;
+
 @NoArgsConstructor
 public class DeadLetterActor extends AbstractLoggingActor {
 
@@ -20,9 +22,11 @@ public class DeadLetterActor extends AbstractLoggingActor {
                 .match(
                         DeadLetter.class,
                         msg -> {
-                            msg.recipient().tell(msg.message(), msg.sender());
+                            BytesMessage<?> message = (BytesMessage<?>) msg.message();
+                            message.getReceiver().tell(message, message.getSender());
                             this.log().info("Rerouting dead letter from {} to {}.", msg.sender(), msg.sender());
                         })
+                .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
                 .build();
     }
 }
