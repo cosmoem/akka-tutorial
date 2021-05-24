@@ -50,7 +50,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		private int messageLength;
 		private int offset; // TODO naming: offset? chunk number ? chunk position?? chunk offset?
 		private long messageId;
-		private Class<?> classType;
+		private Class<?> classType; // TODO remove
 	}
 
 	/////////////////
@@ -148,8 +148,9 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	// Receiver proxy
 	private void handle(BytesMessage<?> message) {
 		// Store Message as Chunks
-		byteBuffer.saveChunksToMap(message.getMessageId(), message.getOffset(), (byte[]) message.getBytes());
-		final Map<Integer, byte[]> messageChunksMap = byteBuffer.getMap(message.getMessageId());
+		long messageId = message.getMessageId();
+		byteBuffer.saveChunksToMap(messageId, message.getOffset(), (byte[]) message.getBytes());
+		final Map<Integer, byte[]> messageChunksMap = byteBuffer.getMap(messageId);
 		messageChunksMap.put(message.getOffset(), (byte[]) message.getBytes());
 
 		// Check if all chunks present
@@ -168,6 +169,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			KryoPool kryoPool = KryoPoolSingleton.get();
 			Object decodedMessage = kryoPool.fromBytes(destinationMessage);
 			message.getReceiver().tell(decodedMessage, message.getSender());
+			this.byteBuffer.deleteMapForMessageId(messageId);
 		}
 	}
 
