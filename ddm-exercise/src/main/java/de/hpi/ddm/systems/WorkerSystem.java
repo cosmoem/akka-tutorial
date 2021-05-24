@@ -2,12 +2,14 @@ package de.hpi.ddm.systems;
 
 import java.util.concurrent.TimeUnit;
 
+import akka.actor.DeadLetter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.cluster.Cluster;
+import de.hpi.ddm.actors.DeadLetterActor;
 import de.hpi.ddm.actors.PermutationWorker;
 import de.hpi.ddm.actors.Reaper;
 import de.hpi.ddm.actors.Worker;
@@ -36,7 +38,10 @@ public class WorkerSystem {
 	//	ActorRef metricsListener = system.actorOf(MetricsListener.props(), MetricsListener.DEFAULT_NAME);
 		
 		ActorRef reaper = system.actorOf(Reaper.props(), Reaper.DEFAULT_NAME);
-		
+
+		ActorRef deadLetterActor = system.actorOf(DeadLetterActor.props(), DeadLetterActor.DEFAULT_NAME);
+		system.getEventStream().subscribe(deadLetterActor, DeadLetter.class);
+
 		Cluster.get(system).registerOnMemberUp(() -> {
 			for (int i = 0; i < c.getNumWorkers(); i++)
 				system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
