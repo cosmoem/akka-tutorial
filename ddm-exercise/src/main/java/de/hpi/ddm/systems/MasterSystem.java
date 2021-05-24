@@ -44,8 +44,8 @@ public class MasterSystem {
 		
 		ActorRef master = system.actorOf(Master.props(reader, collector, c.generateWelcomeData()), Master.DEFAULT_NAME);
 
-		ActorRef deadLetterActor = system.actorOf(DeadLetterActor.props(), DeadLetterActor.DEFAULT_NAME);
-		system.getEventStream().subscribe(deadLetterActor, DeadLetter.class);
+		//ActorRef deadLetterActor = system.actorOf(DeadLetterActor.props(), DeadLetterActor.DEFAULT_NAME);
+		//system.getEventStream().subscribe(deadLetterActor, DeadLetter.class);
 
 		Cluster.get(system).registerOnMemberUp(() -> {
 			for (int i = 0; i < c.getNumWorkers(); i++) {
