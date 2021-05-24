@@ -165,12 +165,6 @@ public class Master extends AbstractLoggingActor {
 					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
 					this.permutationWorkPackages.add(permutationWorkPackage);
 				}
-				for (ActorRef permutationWorker: this.permutationWorkers) {
-					PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
-					PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
-					permutationWorker.tell(permutationWorkMessage, this.self());
-					this.numberOfAwaitedPermutationResults++;
-				}
 			}
 
 			// Fetch further lines from the Reader
@@ -229,6 +223,7 @@ public class Master extends AbstractLoggingActor {
 	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
 		PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
 		this.sender().tell(new PermutationWorkMessage(permutationWorkPackage), this.self());
+		this.numberOfAwaitedPermutationResults++;
 	}
 
 	private void handle(PermutationResultMessage message) {

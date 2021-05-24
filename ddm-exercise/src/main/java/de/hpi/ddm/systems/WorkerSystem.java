@@ -8,6 +8,7 @@ import com.typesafe.config.ConfigFactory;
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.cluster.Cluster;
+import de.hpi.ddm.actors.PermutationWorker;
 import de.hpi.ddm.actors.Reaper;
 import de.hpi.ddm.actors.Worker;
 import de.hpi.ddm.configuration.Configuration;
@@ -39,6 +40,10 @@ public class WorkerSystem {
 		Cluster.get(system).registerOnMemberUp(() -> {
 			for (int i = 0; i < c.getNumWorkers(); i++)
 				system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
+
+			for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
+				system.actorOf(PermutationWorker.props(), PermutationWorker.DEFAULT_NAME + i);
+			}
 		});
 
 		Cluster.get(system).registerOnMemberRemoved(() -> {

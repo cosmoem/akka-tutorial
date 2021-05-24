@@ -95,6 +95,7 @@ public class PermutationWorker extends AbstractLoggingActor {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
         int sizeInMB = message.getWelcomeData().getSizeInMB();
         this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
+        this.sender().tell(new PermutationWorkerWorkRequestMessage(), this.self());
     }
 
     private void handle(ClusterEvent.CurrentClusterState message) {
