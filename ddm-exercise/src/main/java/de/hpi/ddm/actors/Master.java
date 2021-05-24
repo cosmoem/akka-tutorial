@@ -158,7 +158,6 @@ public class Master extends AbstractLoggingActor {
 			}
 
 			if (this.permutations.isEmpty() && this.numberOfAwaitedPermutationResults == 0) {
-				this.log().info("Creating Permutation Workers...");
 				PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(0);
 				String passwordCharacters = passwordWorkpackage.getPasswordCharacters();
 				for (char character: passwordCharacters.toCharArray()) {
@@ -223,8 +222,8 @@ public class Master extends AbstractLoggingActor {
 	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
 		PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
 		PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
-		LargeMessage<PermutationWorkMessage> largeMessage = new LargeMessage<>(permutationWorkMessage, this.self());
-		this.sender().tell(largeMessage, this.self());
+		LargeMessage<PermutationWorkMessage> largeMessage = new LargeMessage<>(permutationWorkMessage, this.sender());
+		this.largeMessageProxy.tell(largeMessage, this.self());
 		this.numberOfAwaitedPermutationResults++;
 	}
 

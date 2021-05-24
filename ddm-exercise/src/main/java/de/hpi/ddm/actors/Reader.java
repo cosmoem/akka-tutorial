@@ -4,6 +4,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import akka.actor.ActorRef;
 import com.opencsv.CSVReader;
 
 import akka.actor.AbstractLoggingActor;
@@ -12,6 +13,9 @@ import de.hpi.ddm.singletons.ConfigurationSingleton;
 import de.hpi.ddm.singletons.DatasetDescriptorSingleton;
 import lombok.Data;
 
+import static de.hpi.ddm.actors.LargeMessageProxy.*;
+import static de.hpi.ddm.actors.Master.*;
+
 public class Reader extends AbstractLoggingActor {
 
 	////////////////////////
@@ -19,6 +23,10 @@ public class Reader extends AbstractLoggingActor {
 	////////////////////////
 	
 	public static final String DEFAULT_NAME = "reader";
+
+	public Reader() {
+		largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);;
+	}
 
 	public static Props props() {
 		return Props.create(Reader.class);
@@ -41,11 +49,10 @@ public class Reader extends AbstractLoggingActor {
 	/////////////////
 	// Actor State //
 	/////////////////
-	
+
+	private final ActorRef largeMessageProxy;
 	private CSVReader reader;
-	
 	private int bufferSize;
-	
 	private List<String[]> buffer;
 	
 	/////////////////////
@@ -82,8 +89,9 @@ public class Reader extends AbstractLoggingActor {
 	}
 
 	private void handle(ReadMessage message) throws Exception {
-		this.sender().tell(new Master.BatchMessage(new ArrayList<>(this.buffer)), this.self());
-		
+		BatchMessage batchMessage = new BatchMessage(new ArrayList<>(this.buffer));
+		LargeMessage<BatchMessage> largeMessage = new LargeMessage<>(batchMessage, this.sender());
+		this.largeMessageProxy.tell(largeMessage, this.self());
 		this.read();
 	}
 

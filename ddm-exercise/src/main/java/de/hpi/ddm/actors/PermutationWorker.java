@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static de.hpi.ddm.actors.Master.*;
+import static de.hpi.ddm.actors.LargeMessageProxy.*;
 
 public class PermutationWorker extends AbstractLoggingActor {
 
@@ -135,8 +136,9 @@ public class PermutationWorker extends AbstractLoggingActor {
                 permutationsWithoutHead,
                 head
         );
-        //this.largeMessageProxy.tell(new LargeMessageProxy.LargeMessage<>(new Master.PermutationResultMessage(permutationsWithoutHead), this.sender()), this.self()); TODO
-        this.sender().tell(new PermutationResultMessage(permutationsWithoutHead), this.self());
+        PermutationResultMessage permutationResultMessage = new PermutationResultMessage(permutationsWithoutHead);
+        LargeMessage<PermutationResultMessage> largeMessage = new LargeMessage<>(permutationResultMessage, this.sender());
+        this.largeMessageProxy.tell(largeMessage, this.self());
     }
 
     ////////////////////

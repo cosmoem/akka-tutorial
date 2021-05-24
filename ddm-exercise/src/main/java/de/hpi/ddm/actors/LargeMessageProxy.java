@@ -166,9 +166,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 
 			// Deserialize; Decoded Message = Original Message
 			KryoPool kryoPool = KryoPoolSingleton.get();
-			Object decodedMessage = kryoPool.fromBytes(destinationMessage, message.getClass());
-
-			// Send message to receiver
+			Object decodedMessage = kryoPool.fromBytes(destinationMessage);
 			message.getReceiver().tell(decodedMessage, message.getSender());
 		}
 	}
