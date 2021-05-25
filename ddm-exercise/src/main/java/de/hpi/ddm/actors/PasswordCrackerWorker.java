@@ -17,7 +17,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class PasswordCrackerWorker extends AbstractLoggingActor {
 
@@ -112,6 +117,28 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
 
     private void handle(PasswordAndSolvedHintsMessage message) {
         this.log().info("Hallo wir sind hier angekommen :)");
+        PasswordWorkpackage passwordWorkpackage = message.passwordWorkpackage;
+        List<Character> hintCharacters = message.hintResults.stream().map(HintResult::getLetter).collect(Collectors.toList());
+
+        String encodedPassword = passwordWorkpackage.getPassword();
+
+        int passwordLength = passwordWorkpackage.getPasswordLength();
+        int numberOfHints = passwordWorkpackage.getHints().length;
+        int numberOfPasswordCharacters = passwordLength - numberOfHints;
+        char[] allPasswordCharacters = passwordWorkpackage.getPasswordCharacters().toCharArray();
+
+        char[] passwordCharacters = new char[numberOfPasswordCharacters]; // character which can actually be part of the password
+        int counter = 0;
+
+        for (char character : allPasswordCharacters) {
+            if (!hintCharacters.contains(character)) {
+                passwordCharacters[counter] = character;
+                counter++;
+            }
+        }
+
+        generate(passwordCharacters, passwordLength, "", passwordCharacters.length, encodedPassword);
+
         //this.sender().tell(); TODO return result + pull? retries ????
     }
 
@@ -124,6 +151,43 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
             this.getContext().parent()
                     .tell(new PermutationHandler.WorkerSystemRegistrationMessage(), this.self());
             this.registrationTime = System.currentTimeMillis();
+        }
+    }
+
+    static void generate(char[] arr, int i, String s, int len, String encodedPassword)
+    {
+        if (i == 0)
+        {
+            if (encodedPassword.equals(hash(s))) {
+                System.out.println(s + " ist die lösung");
+            }
+            return;
+        }
+
+        // iterate through the array
+        for (int j = 0; j < len; j++)
+        {
+
+            // Create new string with next character
+            // Call generate again until string has
+            // reached its len
+            String appended = s + arr[j];
+            generate(arr, i - 1, appended, len, encodedPassword);
+        }
+        return;
+    }
+
+    private static String hash(String characters) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hashedBytes = digest.digest(String.valueOf(characters).getBytes(StandardCharsets.UTF_8));
+            StringBuilder stringBuffer = new StringBuilder();
+            for (byte hashedByte : hashedBytes) {
+                stringBuffer.append(Integer.toString((hashedByte & 0xff) + 0x100, 16).substring(1));
+            }
+            return stringBuffer.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e.getMessage());
         }
     }
 }

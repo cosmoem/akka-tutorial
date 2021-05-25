@@ -17,7 +17,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
-import scala.Option;
 
 import static de.hpi.ddm.actors.BruteForceWorker.*;
 import static de.hpi.ddm.actors.PasswordCrackerWorker.*;
@@ -45,6 +44,7 @@ public class Worker extends AbstractLoggingActor {
 		this.numberOfHints = 0;
 		this.passwordWorkPackages = new HashMap<>();
 		this.workPackagesReadyForPasswordCracker = new ArrayList<>();
+		this.passwordCrackerWorkers = new ArrayList<>();
 	}
 	
 	////////////////////
@@ -88,6 +88,7 @@ public class Worker extends AbstractLoggingActor {
 	private final Cluster cluster;
 	private final ActorRef largeMessageProxy;
 	private final List<ActorRef> bruteforceWorkers;
+	private final List<ActorRef> passwordCrackerWorkers;
 	private final List<BruteForceWorkPackage> bruteForceWorkPackages;
 	private final Map<Integer, List<HintResult>> hintResults;
 	private final Map<Integer, PasswordWorkpackage> passwordWorkPackages;
@@ -200,33 +201,27 @@ public class Worker extends AbstractLoggingActor {
 	private void handle(BruteForceResultMessage message) {
 		this.log().info("Received Hint Result from {}.", this.sender().path().name());
 		HintResult hintResult = message.hintResult;
-		this.hintResults.putIfAbsent(hintResult.getPasswordId(), new ArrayList<>());
-		this.hintResults.get(hintResult.getPasswordId()).add(hintResult);
+		int passwordId = hintResult.getPasswordId();
+		this.hintResults.putIfAbsent(passwordId, new ArrayList<>());
+		this.hintResults.get(passwordId).add(hintResult);
 		if (!this.bruteForceWorkPackages.isEmpty()) {
 			BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
 			HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
 			this.sender().tell(hintMessage, this.self());
 		}
-		boolean allDone = true;
-		for (List<HintResult> hintList : this.hintResults.values()) {
-			if(hintList.size()!=this.numberOfHints) {
-				allDone = false;
-				break;
-			}
-		}
+		boolean allDone = this.hintResults.get(passwordId).size() == this.numberOfHints;
 		this.log().info(String.valueOf(allDone)); // TODO delete
 		if(allDone) {
-			this.workPackagesReadyForPasswordCracker.add(hintResult.getPasswordId());
+			this.workPackagesReadyForPasswordCracker.add(passwordId);
 			this.log().info("Collected all Hint Results.");
-			Object potentialActor = this.context().child("password-cracker-worker").getOrElse(null);
-			if (potentialActor == null) {
-				this.context().actorOf(PasswordCrackerWorker.props(), PasswordCrackerWorker.DEFAULT_NAME);
+			if (this.passwordCrackerWorkers.isEmpty()) {
+				ActorRef actor = this.context().actorOf(PasswordCrackerWorker.props(), PasswordCrackerWorker.DEFAULT_NAME);
+				this.passwordCrackerWorkers.add(actor);
 			}
+			ActorSelection master = this.getContext().actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME);
+			master.tell(new Master.WorkerWorkRequestMessage(), this.self());
 		}
-		ActorSelection master = this.getContext().actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME);
-		master.tell(new Master.WorkerWorkRequestMessage(), this.self());
 	}
-
 
 	private void handle(PasswordCrackerWorkRequestMessage message) {
 		if (!this.workPackagesReadyForPasswordCracker.isEmpty()) {
