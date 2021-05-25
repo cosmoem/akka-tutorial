@@ -156,7 +156,7 @@ public class PermutationHandler extends AbstractLoggingActor {
         }
         if (this.permutationWorkers.isEmpty()) {
             for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
-                this.context().actorOf(Worker.props(welcomeData), Worker.DEFAULT_NAME + i);
+                this.context().actorOf(PermutationWorker.props(), PermutationWorker.DEFAULT_NAME + i);
             }
         }
     }
