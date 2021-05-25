@@ -17,8 +17,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
+import scala.Option;
 
 import static de.hpi.ddm.actors.BruteForceWorker.*;
+import static de.hpi.ddm.actors.PasswordCrackerWorker.*;
+import static de.hpi.ddm.actors.PermutationHandler.*;
 
 public class Worker extends AbstractLoggingActor {
 
@@ -39,6 +42,9 @@ public class Worker extends AbstractLoggingActor {
 		this.bruteForceWorkPackages = new ArrayList<>();
 		this.hintResults = new HashMap<>();
 		this.welcomeData = welcomeData;
+		this.numberOfHints = 0;
+		this.passwordWorkPackages = new HashMap<>();
+		this.workPackagesReadyForPasswordCracker = new ArrayList<>();
 	}
 	
 	////////////////////
@@ -50,6 +56,7 @@ public class Worker extends AbstractLoggingActor {
 		private static final long serialVersionUID = 8343040942748609598L;
 		private BloomFilter welcomeData;
 	}
+
 	@Data @NoArgsConstructor @AllArgsConstructor
 	public static class PasswordWorkPackageMessage implements Serializable {
 		private static final long serialVersionUID = -1237147518255012838L;
@@ -59,6 +66,11 @@ public class Worker extends AbstractLoggingActor {
 	@Data
 	public static class BruteForceWorkerWorkRequestMessage implements Serializable {
 		private static final long serialVersionUID = -82654819868676347L;
+	}
+
+	@Data
+	public static class PasswordCrackerWorkRequestMessage implements Serializable {
+		private static final long serialVersionUID = 83744819809806322L;
 	}
 
 	@Data @NoArgsConstructor @AllArgsConstructor
@@ -78,9 +90,12 @@ public class Worker extends AbstractLoggingActor {
 	private final List<ActorRef> bruteforceWorkers;
 	private final List<BruteForceWorkPackage> bruteForceWorkPackages;
 	private final Map<Integer, List<HintResult>> hintResults;
+	private final Map<Integer, PasswordWorkpackage> passwordWorkPackages;
+	private final List<Integer> workPackagesReadyForPasswordCracker;
 	private long registrationTime;
 	private final Configuration c = ConfigurationSingleton.get();
 	private final BloomFilter welcomeData;
+	private int numberOfHints;
 
 	/////////////////////
 	// Actor Lifecycle //
@@ -110,9 +125,10 @@ public class Worker extends AbstractLoggingActor {
 				.match(MemberRemoved.class, this::handle)
 				.match(WelcomeMessage.class, this::handle) // Welcome from Master
 				.match(PasswordWorkPackageMessage.class, this::handle) // Gets Password that should be worked on from Master
-				.match(Master.RegistrationMessage.class, this::handle) // BruteForceWorker registers with Worker
+				.match(WorkerSystemRegistrationMessage.class, this::handle) // BruteForceWorker registers with Worker
 				.match(BruteForceWorkerWorkRequestMessage.class, this::handle) // BruteForceWorkers asks for Hint to crack
 				.match(BruteForceResultMessage.class, this::handle) // Receives Result from BruteForceWorker
+				.match(PasswordCrackerWorkRequestMessage.class, this::handle) // PasswordCracker asks for Password to crack
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -143,9 +159,12 @@ public class Worker extends AbstractLoggingActor {
 		this.log().info("Received Password Work Package from Master.");
 		PasswordWorkpackage passwordWorkpackage = message.getPasswordWorkpackage();
 		String[] hints = passwordWorkpackage.getHints();
+		this.numberOfHints = hints.length;
+		int passwordId = passwordWorkpackage.getId();
+		this.passwordWorkPackages.put(passwordId, passwordWorkpackage);
 		for (String hint: hints) {
 			BruteForceWorkPackage bruteForceWorkPackage = new BruteForceWorkPackage(
-					passwordWorkpackage.getId(),
+					passwordId,
 					passwordWorkpackage.getPasswordCharacters(),
 					hint
 			);
@@ -153,8 +172,7 @@ public class Worker extends AbstractLoggingActor {
 		}
 		if (this.bruteforceWorkers.isEmpty()) {
 			for (int i = 0; i < c.getNumBruteForceWorkers(); i++) {
-				// TODO supervision?!!!!
-				ActorRef actor = this.context().actorOf(
+				this.context().actorOf(
 						BruteForceWorker.props(),
 						BruteForceWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" +  i
 				);
@@ -162,7 +180,7 @@ public class Worker extends AbstractLoggingActor {
 		}
 	}
 
-	protected void handle(Master.RegistrationMessage message) {
+	protected void handle(WorkerSystemRegistrationMessage message) {
 		this.context().watch(this.sender());
 		String name = this.sender().path().name();
 		this.bruteforceWorkers.add(this.sender());
@@ -184,9 +202,42 @@ public class Worker extends AbstractLoggingActor {
 		HintResult hintResult = message.hintResult;
 		this.hintResults.putIfAbsent(hintResult.getPasswordId(), new ArrayList<>());
 		this.hintResults.get(hintResult.getPasswordId()).add(hintResult);
-		// TODO pw cracking worker
-		// TODO get next workpackage from master
+		if (!this.bruteForceWorkPackages.isEmpty()) {
+			BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
+			HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
+			this.sender().tell(hintMessage, this.self());
+		}
+		boolean allDone = true;
+		for (List<HintResult> hintList : this.hintResults.values()) {
+			if(hintList.size()!=this.numberOfHints) {
+				allDone = false;
+				break;
+			}
+		}
+		this.log().info(String.valueOf(allDone)); // TODO delete
+		if(allDone) {
+			this.workPackagesReadyForPasswordCracker.add(hintResult.getPasswordId());
+			this.log().info("Collected all Hint Results.");
+			Object potentialActor = this.context().child("password-cracker-worker").getOrElse(null);
+			if (potentialActor == null) {
+				this.context().actorOf(PasswordCrackerWorker.props(), PasswordCrackerWorker.DEFAULT_NAME);
+			}
+		}
+		ActorSelection master = this.getContext().actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME);
+		master.tell(new Master.WorkerWorkRequestMessage(), this.self());
 	}
+
+
+	private void handle(PasswordCrackerWorkRequestMessage message) {
+		if (!this.workPackagesReadyForPasswordCracker.isEmpty()) {
+			Integer passwordId = this.workPackagesReadyForPasswordCracker.remove(0);
+			PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(passwordId);
+			List<HintResult> hintResults = this.hintResults.get(passwordId);
+			PasswordAndSolvedHintsMessage passwordAndSolvedHintsMessage = new PasswordAndSolvedHintsMessage(passwordWorkpackage, hintResults);
+			this.sender().tell(passwordAndSolvedHintsMessage, this.self());
+		}
+	}
+
 
 	////////////////////
 	// Helper Methods //

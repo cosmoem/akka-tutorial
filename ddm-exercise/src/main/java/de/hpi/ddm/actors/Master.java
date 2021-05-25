@@ -112,6 +112,7 @@ public class Master extends AbstractLoggingActor {
 				.match(RegistrationMessage.class, this::handle) // Registration from PermutationHandler & Workers
 				.match(PermutationWorkPackageRequest.class, this::handle) // PermutationHandler asks for Work Packages
 				.match(PermutationsReadyMessage.class, this::handle) // PermutationHandler signals that Permutation Calculation is done
+				.match(WorkerWorkRequestMessage.class, this::handle) // Worker asks for next password to crack
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -227,14 +228,13 @@ public class Master extends AbstractLoggingActor {
 		}
 	}
 
-/*
 	private void handle(WorkerWorkRequestMessage message) {
 		// TODO: handle empty work package list
 		if (!this.passwordWorkPackages.isEmpty()) {
 			PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
 			this.sender().tell(new PasswordWorkPackageMessage(passwordWorkpackage), this.self());
 		}
-	}*/
+	}
 
 	////////////////////
 	// Helper Methods //

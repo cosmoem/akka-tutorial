@@ -65,6 +65,7 @@ public class PermutationHandler extends AbstractLoggingActor {
     public static class PermutationResultMessage implements Serializable {
         private static final long serialVersionUID = -72434659866542342L;
         private char head;
+        private char head2;
     }
 
     @Data
@@ -82,7 +83,7 @@ public class PermutationHandler extends AbstractLoggingActor {
     private long registrationTime;
     private Cancellable workRequest;
     private final List<PermutationWorkPackage> permutationWorkPackages;
-    private final Map<Character, Boolean> resultTracker;
+    private final Map<String, Boolean> resultTracker;
     private final Configuration c = ConfigurationSingleton.get();
     private final BloomFilter welcomeData;
     private final ActorRef largeMessageProxy;
@@ -158,7 +159,8 @@ public class PermutationHandler extends AbstractLoggingActor {
         this.workRequest.cancel();
         this.permutationWorkPackages.addAll(message.getPermutationWorkPackages());
         for (PermutationWorkPackage workPackage : this.permutationWorkPackages) {
-            this.resultTracker.put(workPackage.getHead(), false);
+            String key = String.valueOf(workPackage.getHead()) + String.valueOf(workPackage.getHead2());
+            this.resultTracker.put(key, false);
         }
         if (this.permutationWorkers.isEmpty()) {
             for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
@@ -186,8 +188,13 @@ public class PermutationHandler extends AbstractLoggingActor {
     }
 
     private void handle(PermutationResultMessage message) {
-        this.log().info("Received Signal that Computation for letter {} is done from {}", message.head, this.sender().path().name());
-        this.resultTracker.replace(message.head, true);
+        this.log().info("Received Signal that Computation for letter combination {}-{} is done from {}", message.head, message.head2, this.sender().path().name());
+        if (!this.permutationWorkPackages.isEmpty()) {
+            PermutationWorkPackage workPackage = this.permutationWorkPackages.remove(0);
+            this.sender().tell(new PermutationWorkMessage(workPackage), this.self());
+        }
+        String key = String.valueOf(message.head) + String.valueOf(message.head2);
+        this.resultTracker.replace(key, true);
         boolean allDone = true;
         for (Boolean done : resultTracker.values()) {
             if (!done) {

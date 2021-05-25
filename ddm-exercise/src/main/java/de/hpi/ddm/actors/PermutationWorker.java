@@ -118,11 +118,11 @@ public class PermutationWorker extends AbstractLoggingActor {
     }
 
     private void handle(PermutationWorkMessage message) {
-        this.log().info("Received Permutation Work Package from {} for letter {}.", this.sender().path().name(), message.getPermutationWorkPackage().getHead());
         PermutationWorkPackage permutationWorkPackage = message.permutationWorkPackage;
-        char[] passwordChars = permutationWorkPackage.getPasswordChars().toCharArray();
         char head = permutationWorkPackage.getHead();
         char head2 = permutationWorkPackage.getHead2();
+        this.log().info("Received Permutation Work Package from {} for letter combination {}-{}.", this.sender().path().name(), head, head2);
+        char[] passwordChars = permutationWorkPackage.getPasswordChars().toCharArray();
         char[] charsWithoutHead = new char[passwordChars.length-2];
         int index = 0;
         for (char c: passwordChars) {
@@ -142,8 +142,7 @@ public class PermutationWorker extends AbstractLoggingActor {
         );
 
         PermutationSingleton.addPermutations(permutationsPartialResult);
-        PermutationResultMessage permutationResultMessage = new PermutationResultMessage(head);
-        this.sender().tell(new PermutationWorkRequest(), this.self());
+        PermutationResultMessage permutationResultMessage = new PermutationResultMessage(head, head2);
         this.sender().tell(permutationResultMessage, this.self());
     }
 
@@ -161,7 +160,7 @@ public class PermutationWorker extends AbstractLoggingActor {
     ) {
         if (charLength == 1) {
             String correctLengthString = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
-            String permutation = head + head2 + correctLengthString;
+            String permutation = String.valueOf(head) + String.valueOf(head2) + correctLengthString;
             String hashed = hash(permutation);
             outputMap.put(permutation, hashed);
         }

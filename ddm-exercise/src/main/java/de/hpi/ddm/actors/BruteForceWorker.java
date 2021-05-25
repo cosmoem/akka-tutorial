@@ -17,7 +17,6 @@ import java.io.Serializable;
 import java.util.*;
 
 import static akka.cluster.ClusterEvent.*;
-import static de.hpi.ddm.actors.Master.*;
 import static de.hpi.ddm.actors.Worker.*;
 
 public class BruteForceWorker extends AbstractLoggingActor {
@@ -155,8 +154,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
 
     private void register(Member member) {
         if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
-            this.getContext()
-                    .actorSelection(member.address() + "/user/" + PermutationHandler.DEFAULT_NAME)
+            this.getContext().parent()
                     .tell(new PermutationHandler.WorkerSystemRegistrationMessage(), this.self());
             this.registrationTime = System.currentTimeMillis();
         }
