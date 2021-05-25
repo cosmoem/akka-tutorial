@@ -28,16 +28,17 @@ public class Worker extends AbstractLoggingActor {
 	
 	public static final String DEFAULT_NAME = "worker";
 
-	public static Props props() {
-		return Props.create(Worker.class);
+	public static Props props(BloomFilter welcomeData) {
+		return Props.create(Worker.class, () -> new Worker(welcomeData));
 	}
 
-	public Worker() {
+	public Worker(BloomFilter welcomeData) {
 		this.cluster = Cluster.get(this.context().system());
 		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
 		this.bruteforceWorkers = new ArrayList<>();
 		this.bruteForceWorkPackages = new ArrayList<>();
 		this.hintResults = new HashMap<>();
+		this.welcomeData = welcomeData;
 	}
 	
 	////////////////////
@@ -79,6 +80,7 @@ public class Worker extends AbstractLoggingActor {
 	private final Map<Integer, List<HintResult>> hintResults;
 	private long registrationTime;
 	private final Configuration c = ConfigurationSingleton.get();
+	private final BloomFilter welcomeData;
 
 	/////////////////////
 	// Actor Lifecycle //
@@ -106,10 +108,11 @@ public class Worker extends AbstractLoggingActor {
 				.match(CurrentClusterState.class, this::handle)
 				.match(MemberUp.class, this::handle)
 				.match(MemberRemoved.class, this::handle)
-				.match(WelcomeMessage.class, this::handle)
-				.match(PasswordWorkPackageMessage.class, this::handle)
-				.match(BruteForceWorkerWorkRequestMessage.class, this::handle)
-				.match(BruteForceResultMessage.class, this::handle)
+				.match(WelcomeMessage.class, this::handle) // Welcome from Master
+				.match(PasswordWorkPackageMessage.class, this::handle) // Gets Password that should be worked on from Master
+				.match(Master.RegistrationMessage.class, this::handle) // BruteForceWorker registers with Worker
+				.match(BruteForceWorkerWorkRequestMessage.class, this::handle) // BruteForceWorkers asks for Hint to crack
+				.match(BruteForceResultMessage.class, this::handle) // Receives Result from BruteForceWorker
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -133,7 +136,7 @@ public class Worker extends AbstractLoggingActor {
 	private void handle(WelcomeMessage message) {
 		final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
 		int sizeInMB = message.getWelcomeData().getSizeInMB();
-		this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
+		this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms. Waiting for work.");
 	}
 
 	private void handle(PasswordWorkPackageMessage message) {
@@ -155,16 +158,25 @@ public class Worker extends AbstractLoggingActor {
 						BruteForceWorker.props(),
 						BruteForceWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" +  i
 				);
-				this.bruteforceWorkers.add(actor);
 			}
 		}
 	}
 
+	protected void handle(Master.RegistrationMessage message) {
+		this.context().watch(this.sender());
+		String name = this.sender().path().name();
+		this.bruteforceWorkers.add(this.sender());
+		this.log().info("Registered {}", this.sender());
+		Worker.WelcomeMessage welcomeMessage = new Worker.WelcomeMessage(this.welcomeData);
+		this.sender().tell(welcomeMessage, this.self());
+	}
+
 	private void handle(BruteForceWorkerWorkRequestMessage message) {
-		BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
-		// TODO check if permutations empty ?
-		HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
-		this.sender().tell(hintMessage, this.self());
+		if (!this.bruteForceWorkPackages.isEmpty()) {
+			BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
+			HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
+			this.sender().tell(hintMessage, this.self());
+		}
 	}
 
 	private void handle(BruteForceResultMessage message) {

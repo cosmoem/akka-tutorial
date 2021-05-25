@@ -2,19 +2,16 @@ package de.hpi.ddm.systems;
 
 import java.util.concurrent.TimeUnit;
 
-import akka.actor.DeadLetter;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.cluster.Cluster;
-import de.hpi.ddm.actors.DeadLetterActor;
-import de.hpi.ddm.actors.PermutationWorker;
-import de.hpi.ddm.actors.Reaper;
-import de.hpi.ddm.actors.Worker;
+import de.hpi.ddm.actors.*;
 import de.hpi.ddm.configuration.Configuration;
 import de.hpi.ddm.singletons.ConfigurationSingleton;
+import de.hpi.ddm.structures.BloomFilter;
 import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;
 
@@ -39,16 +36,11 @@ public class WorkerSystem {
 		
 		ActorRef reaper = system.actorOf(Reaper.props(), Reaper.DEFAULT_NAME);
 
-		//ActorRef deadLetterActor = system.actorOf(DeadLetterActor.props(), DeadLetterActor.DEFAULT_NAME);
-		//system.getEventStream().subscribe(deadLetterActor, DeadLetter.class);
-
+		BloomFilter welcomeData = c.generateWelcomeData();
 		Cluster.get(system).registerOnMemberUp(() -> {
 			for (int i = 0; i < c.getNumWorkers(); i++)
-				system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
-
-			for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
-				system.actorOf(PermutationWorker.props(), PermutationWorker.DEFAULT_NAME + i);
-			}
+				system.actorOf(Worker.props(welcomeData), Worker.DEFAULT_NAME + i);
+			ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
 		});
 
 		Cluster.get(system).registerOnMemberRemoved(() -> {

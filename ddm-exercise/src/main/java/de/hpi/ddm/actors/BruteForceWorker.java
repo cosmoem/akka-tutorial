@@ -8,7 +8,6 @@ import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.BruteForceWorkPackage;
 import de.hpi.ddm.structures.HintResult;
 
-import de.hpi.ddm.systems.MasterSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -81,8 +80,8 @@ public class BruteForceWorker extends AbstractLoggingActor {
                 .match(CurrentClusterState.class, this::handle)
                 .match(MemberUp.class, this::handle)
                 .match(MemberRemoved.class, this::handle)
-                .match(WelcomeMessage.class, this::handle)
-                .match(HintMessage.class, this::handle)
+                .match(WelcomeMessage.class, this::handle) // Welcome message from Worker (parent)
+                .match(HintMessage.class, this::handle) // Receives hint to work on from Worker
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
                 .build();
     }
@@ -154,6 +153,10 @@ public class BruteForceWorker extends AbstractLoggingActor {
     }
 
     private void register(Member member) {
+        ActorRef permutationHandler = this.context().parent();
+        permutationHandler.tell(new RegistrationMessage(), this.self());
+        this.registrationTime = System.currentTimeMillis();
+        /*
         if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
             this.masterSystem = member;
 
@@ -162,6 +165,6 @@ public class BruteForceWorker extends AbstractLoggingActor {
                     .tell(new RegistrationMessage(), this.self());
 
             this.registrationTime = System.currentTimeMillis();
-        }
+        }*/
     }
 }

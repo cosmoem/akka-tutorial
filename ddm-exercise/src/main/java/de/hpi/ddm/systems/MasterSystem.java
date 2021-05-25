@@ -3,8 +3,6 @@ package de.hpi.ddm.systems;
 import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 
-import akka.actor.DeadLetter;
-import akka.actor.DeadLetterActorRef;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -14,6 +12,7 @@ import akka.cluster.Cluster;
 import de.hpi.ddm.actors.*;
 import de.hpi.ddm.configuration.Configuration;
 import de.hpi.ddm.singletons.ConfigurationSingleton;
+import de.hpi.ddm.structures.BloomFilter;
 import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;
 
@@ -41,20 +40,19 @@ public class MasterSystem {
 		ActorRef reader = system.actorOf(Reader.props(), Reader.DEFAULT_NAME);
 		
 		ActorRef collector = system.actorOf(Collector.props(), Collector.DEFAULT_NAME);
-		
-		ActorRef master = system.actorOf(Master.props(reader, collector, c.generateWelcomeData()), Master.DEFAULT_NAME);
 
-		//ActorRef deadLetterActor = system.actorOf(DeadLetterActor.props(), DeadLetterActor.DEFAULT_NAME);
-		//system.getEventStream().subscribe(deadLetterActor, DeadLetter.class);
+		BloomFilter welcomeData = c.generateWelcomeData();
+		ActorRef master = system.actorOf(Master.props(reader, collector, welcomeData), Master.DEFAULT_NAME);
 
 		Cluster.get(system).registerOnMemberUp(() -> {
-			for (int i = 0; i < c.getNumWorkers(); i++) {
-				system.actorOf(Worker.props(), Worker.DEFAULT_NAME + i);
+			int numWorkers = c.getNumWorkers();
+			// for local non-distributed start-up
+			if (numWorkers > 0) {
+				for (int i = 0; i < numWorkers; i++) {
+					system.actorOf(Worker.props(welcomeData), Worker.DEFAULT_NAME + i);
+				}
+				ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
 			}
-			for (int i = 0; i < c.getNumPermutationWorkers(); i++) {
-				system.actorOf(PermutationWorker.props(), PermutationWorker.DEFAULT_NAME + i);
-			}
-
 				if (!c.isStartPaused())
 				master.tell(new Master.StartMessage(), ActorRef.noSender());
 		});

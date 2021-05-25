@@ -9,8 +9,8 @@ import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import de.hpi.ddm.singletons.PermutationSingleton;
+import de.hpi.ddm.structures.BloomFilter;
 import de.hpi.ddm.structures.PermutationWorkPackage;
-import de.hpi.ddm.systems.MasterSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,7 +24,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static de.hpi.ddm.actors.Master.*;
-import static de.hpi.ddm.actors.LargeMessageProxy.*;
+import static de.hpi.ddm.actors.PermutationHandler.*;
+
 
 public class PermutationWorker extends AbstractLoggingActor {
 
@@ -87,7 +88,7 @@ public class PermutationWorker extends AbstractLoggingActor {
                 .match(ClusterEvent.CurrentClusterState.class, this::handle)
                 .match(ClusterEvent.MemberUp.class, this::handle)
                 .match(ClusterEvent.MemberRemoved.class, this::handle)
-                .match(Worker.WelcomeMessage.class, this::handle)
+                .match(Worker.WelcomeMessage.class, this::handle) // Welcome Message from PermutationHandler
                 .match(PermutationWorkMessage.class, this::handle)
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
                 .build();
@@ -97,18 +98,18 @@ public class PermutationWorker extends AbstractLoggingActor {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
         int sizeInMB = message.getWelcomeData().getSizeInMB();
         this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
-        this.sender().tell(new PermutationWorkerWorkRequestMessage(), this.self());
+        this.sender().tell(new PermutationWorkRequest(), this.self());
     }
 
     private void handle(ClusterEvent.CurrentClusterState message) {
         message.getMembers().forEach(member -> {
             if (member.status().equals(MemberStatus.up()))
-                this.register(member);
+                this.register();
         });
     }
 
     private void handle(ClusterEvent.MemberUp message) {
-        this.register(message.member());
+        this.register();
     }
 
     private void handle(ClusterEvent.MemberRemoved message) {
@@ -140,8 +141,8 @@ public class PermutationWorker extends AbstractLoggingActor {
 
         PermutationSingleton.addPermutations(permutationsPartialResult);
         PermutationResultMessage permutationResultMessage = new PermutationResultMessage(head);
+        this.sender().tell(new PermutationWorkRequest(), this.self());
         this.sender().tell(permutationResultMessage, this.self());
-        this.sender().tell(new PermutationWorkerWorkRequestMessage(), this.self());
     }
 
     ////////////////////
@@ -193,15 +194,9 @@ public class PermutationWorker extends AbstractLoggingActor {
         }
     }
 
-    private void register(Member member) {
-        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
-            this.masterSystem = member;
-
-            this.getContext()
-                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
-                    .tell(new RegistrationMessage(), this.self());
-
-            this.registrationTime = System.currentTimeMillis();
-        }
+    private void register() {
+        ActorRef permutationHandler = this.context().parent();
+        permutationHandler.tell(new RegistrationMessage(), this.self());
+        this.registrationTime = System.currentTimeMillis();
     }
 }

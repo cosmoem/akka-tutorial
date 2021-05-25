@@ -2,16 +2,13 @@ package de.hpi.ddm.actors;
 
 import java.io.Serializable;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
 import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.Terminated;
-import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.BloomFilter;
 import de.hpi.ddm.structures.PasswordWorkpackage;
 import de.hpi.ddm.structures.PermutationWorkPackage;
@@ -20,7 +17,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import static de.hpi.ddm.actors.LargeMessageProxy.*;
-import static de.hpi.ddm.actors.PermutationWorker.*;
+import static de.hpi.ddm.actors.PermutationHandler.*;
 import static de.hpi.ddm.actors.Worker.*;
 
 public class Master extends AbstractLoggingActor {
@@ -40,13 +37,9 @@ public class Master extends AbstractLoggingActor {
 		this.collector = collector;
 		this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
 		this.workers = new ArrayList<>();
-		this.permutationWorkers = new ArrayList<>();
 		this.welcomeData = welcomeData;
-		//this.permutations = new HashMap<>();
-		this.permuationsReady = false;
 		this.passwordWorkPackages = new ArrayList<>();
 		this.permutationWorkPackages = new ArrayList<>();
-		this.numberOfAwaitedPermutationResults = 0;
 	}
 
 	////////////////////
@@ -75,15 +68,13 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	@Data
-	public static class PermutationWorkerWorkRequestMessage implements Serializable {
+	public static class PermutationWorkPackageRequest implements Serializable {
 		private static final long serialVersionUID = -63434816465427697L;
 	}
 
-	@Data @NoArgsConstructor @AllArgsConstructor
-	public static class PermutationResultMessage implements Serializable {
-		private static final long serialVersionUID = -72434659866542342L;
-		//private Map<String, String> permutationsPart;
-		private char head;
+	@Data
+	public static class PermutationsReadyMessage implements Serializable {
+		private static final long serialVersionUID = 12344816432127698L;
 	}
 
 	/////////////////
@@ -94,13 +85,9 @@ public class Master extends AbstractLoggingActor {
 	private final ActorRef collector;
 	private final ActorRef largeMessageProxy;
 	private final List<ActorRef> workers;
-	private final List<ActorRef> permutationWorkers;
 	private final BloomFilter welcomeData;
-	//private final HashMap<String, String> permutations;
-	private boolean permuationsReady;
 	private final List<PasswordWorkpackage> passwordWorkPackages;
 	private final List<PermutationWorkPackage> permutationWorkPackages;
-	private int numberOfAwaitedPermutationResults;
 	private long startTime;
 	
 	/////////////////////
@@ -122,10 +109,9 @@ public class Master extends AbstractLoggingActor {
 				.match(StartMessage.class, this::handle)
 				.match(BatchMessage.class, this::handle)
 				.match(Terminated.class, this::handle)
-				.match(RegistrationMessage.class, this::handle)
-				.match(WorkerWorkRequestMessage.class, this::handle)
-				.match(PermutationWorkerWorkRequestMessage.class, this::handle)
-				.match(PermutationResultMessage.class, this::handle)
+				.match(RegistrationMessage.class, this::handle) // Registration from PermutationHandler & Workers
+				.match(PermutationWorkPackageRequest.class, this::handle) // PermutationHandler asks for Work Packages
+				.match(PermutationsReadyMessage.class, this::handle) // PermutationHandler signals that Permutation Calculation is done
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -160,15 +146,14 @@ public class Master extends AbstractLoggingActor {
 				this.passwordWorkPackages.add(passwordWorkpackage);
 			}
 
-			if (!this.permuationsReady) {
+			// creation of permutation work packages
+			if (this.permutationWorkPackages.isEmpty()) {
 				PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(0);
 				String passwordCharacters = passwordWorkpackage.getPasswordCharacters();
 				for (char character: passwordCharacters.toCharArray()) {
 					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
 					this.permutationWorkPackages.add(permutationWorkPackage);
-					this.numberOfAwaitedPermutationResults++;
 				}
-				this.permuationsReady = true;
 			}
 
 			// Fetch further lines from the Reader
@@ -196,7 +181,6 @@ public class Master extends AbstractLoggingActor {
 	protected void handle(Terminated message) {
 		this.context().unwatch(message.getActor());
 		this.workers.remove(message.getActor());
-		this.permutationWorkers.remove(message.getActor());
 		this.log().info("Unregistered {}", message.getActor());
 	}
 
@@ -206,8 +190,6 @@ public class Master extends AbstractLoggingActor {
 		String type = name.substring(0, name.length() - 1);
 		if (type.equals(Worker.DEFAULT_NAME)) {
 			this.workers.add(this.sender());
-		} else if (type.equals(PermutationWorker.DEFAULT_NAME)) {
-			this.permutationWorkers.add(this.sender());
 		}
 
 		this.log().info("Registered {}", this.sender());
@@ -217,40 +199,33 @@ public class Master extends AbstractLoggingActor {
 		this.largeMessageProxy.tell(largeMessage, this.self());
 	}
 
+	private void handle(PermutationWorkPackageRequest message) {
+		if(!this.permutationWorkPackages.isEmpty()) {
+			PermutationWorkPackagesMessage workPackagesMessage = new PermutationWorkPackagesMessage(this.permutationWorkPackages);
+			LargeMessage<PermutationWorkPackagesMessage> largeMessage = new LargeMessage<>(workPackagesMessage, this.sender());
+			this.largeMessageProxy.tell(largeMessage, this.self());
+		}
+	}
+
+	private void handle(PermutationsReadyMessage message) {
+		for (ActorRef worker : this.workers) {
+			if (!this.passwordWorkPackages.isEmpty()) {
+				if (worker.path().parent().equals(sender().path().parent())) {
+					PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
+					worker.tell(new PasswordWorkPackageMessage(passwordWorkpackage), this.self());
+				}
+			}
+		}
+	}
+
+/*
 	private void handle(WorkerWorkRequestMessage message) {
 		// TODO: handle empty work package list
 		if (!this.passwordWorkPackages.isEmpty()) {
 			PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
 			this.sender().tell(new PasswordWorkPackageMessage(passwordWorkpackage), this.self());
 		}
-	}
-
-	private void handle(PermutationWorkerWorkRequestMessage permutationWorkerWorkRequestMessage) {
-		if(!this.permutationWorkPackages.isEmpty()) {
-			PermutationWorkPackage permutationWorkPackage = this.permutationWorkPackages.remove(0);
-			PermutationWorkMessage permutationWorkMessage = new PermutationWorkMessage(permutationWorkPackage);
-			LargeMessage<PermutationWorkMessage> largeMessage = new LargeMessage<>(permutationWorkMessage, this.sender());
-			this.largeMessageProxy.tell(largeMessage, this.self());
-		}
-		// TODO empty list handling
-	}
-
-	private void handle(PermutationResultMessage message) {
-		this.log().info("Received Permutation Result from {} for letter {}.", this.sender().path().name(), message.head);
-		//this.permutations.putAll(message.permutationsPart);
-		this.numberOfAwaitedPermutationResults--;
-		if (this.numberOfAwaitedPermutationResults == 0) {
-			//PermutationSingleton.setPermutations(permutations);
-			// TODO handle empty list
-			for(ActorRef worker : this.workers) {
-				if (!this.passwordWorkPackages.isEmpty()) {
-					PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
-					PasswordWorkPackageMessage workPackageMessage = new PasswordWorkPackageMessage(passwordWorkpackage);
-					worker.tell(workPackageMessage, this.self());
-				}
-			}
-		}
-	}
+	}*/
 
 	////////////////////
 	// Helper Methods //
