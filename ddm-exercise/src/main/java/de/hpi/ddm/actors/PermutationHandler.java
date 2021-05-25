@@ -49,6 +49,12 @@ public class PermutationHandler extends AbstractLoggingActor {
     // Actor Messages //
     ////////////////////
 
+
+    @Data
+    public static class WorkerSystemRegistrationMessage implements Serializable {
+        private static final long serialVersionUID = -5533081653659775497L;
+    }
+
     @Data @NoArgsConstructor @AllArgsConstructor
     public static class PermutationWorkPackagesMessage implements Serializable {
         private static final long serialVersionUID = 12344816443217600L;
@@ -108,7 +114,7 @@ public class PermutationHandler extends AbstractLoggingActor {
                 .match(ClusterEvent.MemberRemoved.class, this::handle)
                 .match(Worker.WelcomeMessage.class, this::handle) // Welcome from Master
                 .match(PermutationWorkPackagesMessage.class, this::handle) // PermutationWorkPackages List from Master
-                .match(RegistrationMessage.class, this::handle) // Registration from PermutationWorker
+                .match(WorkerSystemRegistrationMessage.class, this::handle) // Registration from PermutationWorker
                 .match(PermutationWorkRequest.class, this::handle) // WorkRequest from PermutationWorker
                 .match(PermutationResultMessage.class, this::handle) // Message that job is finished from PermutationWorker
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
@@ -162,7 +168,7 @@ public class PermutationHandler extends AbstractLoggingActor {
         }
     }
 
-    protected void handle(RegistrationMessage message) {
+    protected void handle(WorkerSystemRegistrationMessage message) {
         this.context().watch(this.sender());
         String name = this.sender().path().name();
         this.permutationWorkers.add(this.sender());
@@ -194,7 +200,6 @@ public class PermutationHandler extends AbstractLoggingActor {
                     .actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME)
                     .tell(new PermutationsReadyMessage(), this.self());
         }
-        // TODO handle lost messages
     }
 
     ////////////////////

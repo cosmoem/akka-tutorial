@@ -8,6 +8,7 @@ import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.BruteForceWorkPackage;
 import de.hpi.ddm.structures.HintResult;
 
+import de.hpi.ddm.systems.WorkerSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -153,18 +154,11 @@ public class BruteForceWorker extends AbstractLoggingActor {
     }
 
     private void register(Member member) {
-        ActorRef permutationHandler = this.context().parent();
-        permutationHandler.tell(new RegistrationMessage(), this.self());
-        this.registrationTime = System.currentTimeMillis();
-        /*
-        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
-            this.masterSystem = member;
-
+        if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
             this.getContext()
-                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
-                    .tell(new RegistrationMessage(), this.self());
-
+                    .actorSelection(member.address() + "/user/" + PermutationHandler.DEFAULT_NAME)
+                    .tell(new PermutationHandler.WorkerSystemRegistrationMessage(), this.self());
             this.registrationTime = System.currentTimeMillis();
-        }*/
+        }
     }
 }

@@ -9,8 +9,8 @@ import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import de.hpi.ddm.singletons.PermutationSingleton;
-import de.hpi.ddm.structures.BloomFilter;
 import de.hpi.ddm.structures.PermutationWorkPackage;
+import de.hpi.ddm.systems.WorkerSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -104,12 +104,12 @@ public class PermutationWorker extends AbstractLoggingActor {
     private void handle(ClusterEvent.CurrentClusterState message) {
         message.getMembers().forEach(member -> {
             if (member.status().equals(MemberStatus.up()))
-                this.register();
+                this.register(member);
         });
     }
 
     private void handle(ClusterEvent.MemberUp message) {
-        this.register();
+        this.register(message.member());
     }
 
     private void handle(ClusterEvent.MemberRemoved message) {
@@ -122,10 +122,11 @@ public class PermutationWorker extends AbstractLoggingActor {
         PermutationWorkPackage permutationWorkPackage = message.permutationWorkPackage;
         char[] passwordChars = permutationWorkPackage.getPasswordChars().toCharArray();
         char head = permutationWorkPackage.getHead();
-        char[] charsWithoutHead = new char[passwordChars.length-1];
+        char head2 = permutationWorkPackage.getHead2();
+        char[] charsWithoutHead = new char[passwordChars.length-2];
         int index = 0;
         for (char c: passwordChars) {
-            if(!(c == head)) {
+            if(c != head && c != head2) {
                 charsWithoutHead[index] = c;
                 index++;
             }
@@ -136,7 +137,8 @@ public class PermutationWorker extends AbstractLoggingActor {
                 charsWithoutHead.length,
                 charsWithoutHead.length-1,
                 permutationsPartialResult,
-                head
+                head,
+                head2
         );
 
         PermutationSingleton.addPermutations(permutationsPartialResult);
@@ -154,17 +156,18 @@ public class PermutationWorker extends AbstractLoggingActor {
             int charLength,
             int desiredPermutationLength,
             Map<String, String> outputMap,
-            char head
+            char head,
+            char head2
     ) {
         if (charLength == 1) {
             String correctLengthString = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
-            String permutation = head + correctLengthString;
+            String permutation = head + head2 + correctLengthString;
             String hashed = hash(permutation);
             outputMap.put(permutation, hashed);
         }
 
         for (int i = 0; i < charLength; i++) {
-            parallelHeapPermutation(passwordChars, charLength - 1, desiredPermutationLength, outputMap, head);
+            parallelHeapPermutation(passwordChars, charLength - 1, desiredPermutationLength, outputMap, head, head2);
             // If size is odd, swap first and last element
             char temp;
             if (charLength % 2 == 1) {
@@ -194,9 +197,12 @@ public class PermutationWorker extends AbstractLoggingActor {
         }
     }
 
-    private void register() {
-        ActorRef permutationHandler = this.context().parent();
-        permutationHandler.tell(new RegistrationMessage(), this.self());
-        this.registrationTime = System.currentTimeMillis();
+    private void register(Member member) {
+        if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
+            this.getContext()
+                    .actorSelection(member.address() + "/user/" + PermutationHandler.DEFAULT_NAME)
+                    .tell(new WorkerSystemRegistrationMessage(), this.self());
+            this.registrationTime = System.currentTimeMillis();
+        }
     }
 }

@@ -152,9 +152,14 @@ public class Master extends AbstractLoggingActor {
 			if (this.permutationWorkPackages.isEmpty()) {
 				PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(0);
 				String passwordCharacters = passwordWorkpackage.getPasswordCharacters();
-				for (char character: passwordCharacters.toCharArray()) {
-					PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, passwordCharacters);
-					this.permutationWorkPackages.add(permutationWorkPackage);
+				char[] charactersArray = passwordCharacters.toCharArray();
+				for (char character: charactersArray) {
+					for (char character2: charactersArray) {
+						if (character2!=character) {
+							PermutationWorkPackage permutationWorkPackage = new PermutationWorkPackage(character, character2, passwordCharacters);
+							this.permutationWorkPackages.add(permutationWorkPackage);
+						}
+					}
 				}
 			}
 

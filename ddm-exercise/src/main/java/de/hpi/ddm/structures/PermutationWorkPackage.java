@@ -11,5 +11,6 @@ import java.io.Serializable;
 @AllArgsConstructor
 public class PermutationWorkPackage implements Serializable {
     private char head;
+    private char head2;
     private String passwordChars;
 }
