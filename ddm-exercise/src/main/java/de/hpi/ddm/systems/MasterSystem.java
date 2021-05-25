@@ -44,14 +44,17 @@ public class MasterSystem {
 		BloomFilter welcomeData = c.generateWelcomeData();
 		ActorRef master = system.actorOf(Master.props(reader, collector, welcomeData), Master.DEFAULT_NAME);
 
+		int numWorkers = c.getNumWorkers();
+		if (numWorkers > 0) {
+			ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
+		}
+
 		Cluster.get(system).registerOnMemberUp(() -> {
-			int numWorkers = c.getNumWorkers();
 			// for local non-distributed start-up
 			if (numWorkers > 0) {
 				for (int i = 0; i < numWorkers; i++) {
 					system.actorOf(Worker.props(welcomeData), Worker.DEFAULT_NAME + i);
 				}
-				ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
 			}
 				if (!c.isStartPaused())
 				master.tell(new Master.StartMessage(), ActorRef.noSender());

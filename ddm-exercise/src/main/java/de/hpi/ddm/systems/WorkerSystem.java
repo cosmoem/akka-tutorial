@@ -33,14 +33,14 @@ public class WorkerSystem {
 		
 	//	ActorRef clusterListener = system.actorOf(ClusterListener.props(), ClusterListener.DEFAULT_NAME);
 	//	ActorRef metricsListener = system.actorOf(MetricsListener.props(), MetricsListener.DEFAULT_NAME);
-		
-		ActorRef reaper = system.actorOf(Reaper.props(), Reaper.DEFAULT_NAME);
-
 		BloomFilter welcomeData = c.generateWelcomeData();
+
+		ActorRef reaper = system.actorOf(Reaper.props(), Reaper.DEFAULT_NAME);
+		ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
+
 		Cluster.get(system).registerOnMemberUp(() -> {
 			for (int i = 0; i < c.getNumWorkers(); i++)
 				system.actorOf(Worker.props(welcomeData), Worker.DEFAULT_NAME + i);
-			ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
 		});
 
 		Cluster.get(system).registerOnMemberRemoved(() -> {
