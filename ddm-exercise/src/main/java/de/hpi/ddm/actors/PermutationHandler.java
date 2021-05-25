@@ -42,6 +42,7 @@ public class PermutationHandler extends AbstractLoggingActor {
         this.permutationWorkPackages = new ArrayList<>();
         this.resultTracker = new HashMap<>();
         this.welcomeData = welcomeData;
+        this.largeMessageProxy = this.context().actorOf(LargeMessageProxy.props(), LargeMessageProxy.DEFAULT_NAME);
     }
 
     ////////////////////
@@ -78,6 +79,7 @@ public class PermutationHandler extends AbstractLoggingActor {
     private final Map<Character, Boolean> resultTracker;
     private final Configuration c = ConfigurationSingleton.get();
     private final BloomFilter welcomeData;
+    private final ActorRef largeMessageProxy;
 
     /////////////////////
     // Actor Lifecycle //
