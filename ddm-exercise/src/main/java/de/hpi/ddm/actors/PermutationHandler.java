@@ -148,6 +148,7 @@ public class PermutationHandler extends AbstractLoggingActor {
 
 
     private void handle(PermutationWorkPackagesMessage message) {
+        this.log().info("Received Permutation Work Packages from master.");
         this.workRequest.cancel();
         this.permutationWorkPackages.addAll(message.getPermutationWorkPackages());
         for (PermutationWorkPackage workPackage : this.permutationWorkPackages) {
@@ -170,6 +171,7 @@ public class PermutationHandler extends AbstractLoggingActor {
     }
 
     protected void handle(PermutationWorkRequest message) {
+        this.log().info("Received Permutation Work Request from {}", this.sender().path().name());
         if (!this.permutationWorkPackages.isEmpty()) {
             PermutationWorkPackage workPackage = this.permutationWorkPackages.remove(0);
             this.sender().tell(new PermutationWorkMessage(workPackage), this.self());
@@ -177,6 +179,7 @@ public class PermutationHandler extends AbstractLoggingActor {
     }
 
     private void handle(PermutationResultMessage message) {
+        this.log().info("Received Signal that Computation for letter {} is done from {}", message.head, this.sender().path().name());
         this.resultTracker.replace(message.head, true);
         boolean allDone = true;
         for (Boolean done : resultTracker.values()) {

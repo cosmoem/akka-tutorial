@@ -119,12 +119,14 @@ public class Master extends AbstractLoggingActor {
 	// TODO: Terminated-Message & PoisonPill Impl ?
 
 	protected void handle(StartMessage message) {
+		this.log().info("Received StartMessage from MasterSystem.");
 		this.startTime = System.currentTimeMillis();
 		this.reader.tell(new Reader.ReadMessage(), this.self());
 	}
 	
 	protected void handle(BatchMessage message) {
 		// Stop fetching lines from the Reader once an empty BatchMessage was received; we have seen all data then
+		this.log().info("Received BatchMessage from Reader.");
 		if (message.getLines().isEmpty()) {
 			this.reader.tell(new Reader.StopReadMessage(), this.self());
 		}
@@ -200,6 +202,7 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	private void handle(PermutationWorkPackageRequest message) {
+		this.log().info("Received Request for Permutation Work Packages from {}", this.sender().path().name());
 		if(!this.permutationWorkPackages.isEmpty()) {
 			PermutationWorkPackagesMessage workPackagesMessage = new PermutationWorkPackagesMessage(this.permutationWorkPackages);
 			LargeMessage<PermutationWorkPackagesMessage> largeMessage = new LargeMessage<>(workPackagesMessage, this.sender());
@@ -208,6 +211,7 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	private void handle(PermutationsReadyMessage message) {
+		this.log().info("Received Signal that Permutations are ready for System {}", this.sender().path().parent().name());
 		for (ActorRef worker : this.workers) {
 			if (!this.passwordWorkPackages.isEmpty()) {
 				if (worker.path().parent().equals(sender().path().parent())) {

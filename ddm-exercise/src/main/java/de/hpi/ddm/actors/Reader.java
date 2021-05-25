@@ -68,6 +68,7 @@ public class Reader extends AbstractLoggingActor {
 		this.buffer = new ArrayList<>(this.bufferSize);
 		
 		this.read();
+		this.log().info("Started Reading...");
 	}
 
 	@Override
