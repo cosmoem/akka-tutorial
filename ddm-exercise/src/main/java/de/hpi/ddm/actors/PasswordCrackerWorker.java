@@ -115,7 +115,6 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
     }
 
     private void handle(PasswordAndSolvedHintsMessage message) {
-        this.log().info("Hallo wir sind hier angekommen :)");
         PasswordWorkPackage passwordWorkPackage = message.passwordWorkpackage;
         List<Character> hintCharacters = message.hintResults.stream().map(HintResult::getLetter).collect(Collectors.toList());
 
@@ -123,8 +122,8 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
 
         int passwordLength = passwordWorkPackage.getPasswordLength();
         int numberOfHints = passwordWorkPackage.getHints().length;
-        int numberOfPasswordCharacters = passwordLength - numberOfHints;
         char[] allPasswordCharacters = passwordWorkPackage.getPasswordCharacters().toCharArray();
+        int numberOfPasswordCharacters = allPasswordCharacters.length - numberOfHints;
 
         char[] passwordCharacters = new char[numberOfPasswordCharacters]; // character which can actually be part of the password
         int counter = 0;

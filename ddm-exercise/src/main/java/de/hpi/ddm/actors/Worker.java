@@ -187,23 +187,30 @@ public class Worker extends AbstractLoggingActor {
 				);
 			}
 		}
+		else {
+			for (ActorRef bruteforceWorker : this.bruteforceWorkers) {
+				giveBruteForceWorkersWork(bruteforceWorker);
+			}
+		}
 	}
 
 	protected void handle(WorkerSystemRegistrationMessage message) {
 		this.context().watch(this.sender());
 		String name = this.sender().path().name();
-		this.bruteforceWorkers.add(this.sender());
+		String type = name.substring(0, name.length() - Worker.DEFAULT_NAME.length() - 4);
+		if (type.equals(BruteForceWorker.DEFAULT_NAME)) {
+			this.bruteforceWorkers.add(this.sender());
+		}
+		else if (type.equals(PasswordCrackerWorker.DEFAULT_NAME)) {
+			this.passwordCrackerWorkers.add(this.sender());
+		}
 		this.log().info("Registered {}", this.sender());
 		Worker.WelcomeMessage welcomeMessage = new Worker.WelcomeMessage(this.welcomeData);
 		this.sender().tell(welcomeMessage, this.self());
 	}
 
 	private void handle(BruteForceWorkerWorkRequestMessage message) {
-		if (!this.bruteForceWorkPackages.isEmpty()) {
-			BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
-			HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
-			this.sender().tell(hintMessage, this.self());
-		}
+		giveBruteForceWorkersWork(this.sender());
 	}
 
 	private void handle(BruteForceResultMessage message) {
@@ -212,46 +219,43 @@ public class Worker extends AbstractLoggingActor {
 		int passwordId = hintResult.getPasswordId();
 		this.hintResults.putIfAbsent(passwordId, new ArrayList<>());
 		this.hintResults.get(passwordId).add(hintResult);
-		if (!this.bruteForceWorkPackages.isEmpty()) {
-			BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
-			HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
-			this.sender().tell(hintMessage, this.self());
-		}
 		boolean allDone = this.hintResults.get(passwordId).size() == this.numberOfHints;
-		this.log().info(String.valueOf(allDone)); // TODO delete
+		this.log().info("{} for password {}", String.valueOf(allDone), passwordId);
 		if(allDone) {
 			this.workPackagesReadyForPasswordCracker.add(passwordId);
 			this.log().info("Collected all Hint Results.");
 			if (this.passwordCrackerWorkers.isEmpty()) {
-				ActorRef actor = this.context().actorOf(PasswordCrackerWorker.props(), PasswordCrackerWorker.DEFAULT_NAME);
-				this.passwordCrackerWorkers.add(actor);
+				for (int i = 0; i < c.getNumPasswordCrackerWorkers(); i++) {
+					ActorRef actor = this.context().actorOf(
+							PasswordCrackerWorker.props(),
+							PasswordCrackerWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" + i
+					);
+				}
 			}
-			ActorSelection master = this.getContext().actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME);
+			else {
+				for (ActorRef passwordCrackerWorker : this.passwordCrackerWorkers) {
+					givePasswordCrackerWork(passwordCrackerWorker);
+				}
+			}
+			ActorSelection master = this.getContext()
+					.actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME);
 			master.tell(new Master.WorkerWorkRequestMessage(), this.self());
+		}
+		else {
+			giveBruteForceWorkersWork(this.sender());
 		}
 	}
 
 	private void handle(PasswordCrackerWorkRequestMessage message) {
-		givePasswordCrackerWork();
+		givePasswordCrackerWork(this.sender());
 	}
 
 	private void handle(PasswordCrackerResultMessage message) {
 		this.getContext()
 				.actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME)
 				.tell(message, this.self());
-		givePasswordCrackerWork();
+		givePasswordCrackerWork(this.sender());
 	}
-
-	private void givePasswordCrackerWork() {
-		if (!this.workPackagesReadyForPasswordCracker.isEmpty()) {
-			Integer passwordId = this.workPackagesReadyForPasswordCracker.remove(0);
-			PasswordWorkPackage passwordWorkpackage = this.passwordWorkPackages.get(passwordId);
-			List<HintResult> hintResults = this.hintResults.get(passwordId);
-			PasswordAndSolvedHintsMessage passwordAndSolvedHintsMessage = new PasswordAndSolvedHintsMessage(passwordWorkpackage, hintResults);
-			this.sender().tell(passwordAndSolvedHintsMessage, this.self());
-		}
-	}
-
 
 	////////////////////
 	// Helper Methods //
@@ -266,6 +270,24 @@ public class Worker extends AbstractLoggingActor {
 					.tell(new Master.RegistrationMessage(), this.self());
 
 			this.registrationTime = System.currentTimeMillis();
+		}
+	}
+
+	private void givePasswordCrackerWork(ActorRef receiver) {
+		if (!this.workPackagesReadyForPasswordCracker.isEmpty()) {
+			Integer passwordId = this.workPackagesReadyForPasswordCracker.remove(0);
+			PasswordWorkPackage passwordWorkpackage = this.passwordWorkPackages.get(passwordId);
+			List<HintResult> hintResults = this.hintResults.get(passwordId);
+			PasswordAndSolvedHintsMessage passwordAndSolvedHintsMessage = new PasswordAndSolvedHintsMessage(passwordWorkpackage, hintResults);
+			receiver.tell(passwordAndSolvedHintsMessage, this.self());
+		}
+	}
+
+	private void giveBruteForceWorkersWork(ActorRef receiver) {
+		if (!this.bruteForceWorkPackages.isEmpty()) {
+			BruteForceWorkPackage bruteForceWorkPackage = this.bruteForceWorkPackages.remove(0);
+			HintMessage hintMessage = new HintMessage(bruteForceWorkPackage);
+			receiver.tell(hintMessage, this.self());
 		}
 	}
 }
