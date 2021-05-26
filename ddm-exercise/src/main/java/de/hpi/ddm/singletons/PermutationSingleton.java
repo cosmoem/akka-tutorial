@@ -1,16 +1,18 @@
 package de.hpi.ddm.singletons;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class PermutationSingleton {
-    private static Map<String, String> permutations = new HashMap<>();
+    private static List<String> permutations = new ArrayList<>();
 
-    public static Map<String, String> getPermutations() {
+    public static List<String> getPermutations() {
         return permutations;
     }
 
-    public static void addPermutations(Map<String, String> permutationsPart) {
-        permutations.putAll(permutationsPart);
+    public static void addPermutations(List<String> permutationsPart) {
+        permutations.addAll(permutationsPart);
     }
 }

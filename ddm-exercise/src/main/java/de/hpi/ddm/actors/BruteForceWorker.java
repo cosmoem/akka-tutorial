@@ -117,7 +117,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
 
         this.log().info("Received Hint {} for Password {}", hint, passwordId);
 
-        String decodedHint = bruteforceHint(PermutationSingleton.getPermutations(), hint);
+        String decodedHint = bruteforceHint(hint);
         char letter = solveHint(passwordChars, decodedHint);
         HintResult hintResult = new HintResult(passwordId, letter, hint);
         this.sender().tell(new BruteForceResultMessage(hintResult), this.self());
@@ -127,10 +127,13 @@ public class BruteForceWorker extends AbstractLoggingActor {
     // Helper Methods //
     ////////////////////
 
-    private String bruteforceHint(Map<String, String> permutations, String encodedHint) {
-        for (String key : permutations.keySet()) {
-            if(permutations.get(key).equals(encodedHint)) {
-                return key;
+    private String bruteforceHint(String encodedHint) {
+        List<String> permutations = PermutationSingleton.getPermutations();
+        for (String string : permutations) {
+            String decodedPermutation = string.substring(0, 10);
+            String encodedPermutation = string.substring(11);
+            if(encodedPermutation.equals(encodedHint)) {
+                return decodedPermutation;
             }
         }
         return "";

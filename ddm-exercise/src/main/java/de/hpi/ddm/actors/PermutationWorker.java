@@ -19,9 +19,7 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 import static de.hpi.ddm.actors.PermutationHandler.*;
 
@@ -130,7 +128,7 @@ public class PermutationWorker extends AbstractLoggingActor {
                 index++;
             }
         }
-        Map<String, String> permutationsPartialResult = new HashMap<>();
+        List<String> permutationsPartialResult = new ArrayList<>();
         parallelHeapPermutation(
                 charsWithoutHead,
                 charsWithoutHead.length,
@@ -154,7 +152,7 @@ public class PermutationWorker extends AbstractLoggingActor {
             char[] passwordChars,
             int charLength,
             int desiredPermutationLength,
-            Map<String, String> outputMap,
+            List<String> outputMap,
             char head,
             char head2
     ) {
@@ -162,7 +160,7 @@ public class PermutationWorker extends AbstractLoggingActor {
             String correctLengthString = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
             String permutation = String.valueOf(head) + String.valueOf(head2) + correctLengthString;
             String hashed = hash(permutation);
-            outputMap.put(permutation, hashed);
+            outputMap.add(permutation+hashed);
         }
 
         for (int i = 0; i < charLength; i++) {
