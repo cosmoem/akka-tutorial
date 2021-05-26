@@ -9,6 +9,8 @@ import akka.actor.ActorRef;
 import akka.actor.ActorSystem;
 import akka.cluster.Cluster;
 import de.hpi.ddm.actors.*;
+import de.hpi.ddm.actors.listeners.ClusterListener;
+import de.hpi.ddm.actors.listeners.MetricsListener;
 import de.hpi.ddm.configuration.Configuration;
 import de.hpi.ddm.singletons.ConfigurationSingleton;
 import de.hpi.ddm.structures.BloomFilter;
@@ -31,8 +33,8 @@ public class WorkerSystem {
 		
 		final ActorSystem system = ActorSystem.create(c.getActorSystemName(), config);
 		
-	//	ActorRef clusterListener = system.actorOf(ClusterListener.props(), ClusterListener.DEFAULT_NAME);
-	//	ActorRef metricsListener = system.actorOf(MetricsListener.props(), MetricsListener.DEFAULT_NAME);
+		ActorRef clusterListener = system.actorOf(ClusterListener.props(), ClusterListener.DEFAULT_NAME);
+		ActorRef metricsListener = system.actorOf(MetricsListener.props(), MetricsListener.DEFAULT_NAME);
 		BloomFilter welcomeData = c.generateWelcomeData();
 
 		ActorRef reaper = system.actorOf(Reaper.props(), Reaper.DEFAULT_NAME);
