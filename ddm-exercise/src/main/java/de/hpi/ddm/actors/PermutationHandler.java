@@ -23,6 +23,8 @@ import java.util.Map;
 
 import static de.hpi.ddm.actors.Master.*;
 import static de.hpi.ddm.actors.PermutationWorker.*;
+import static de.hpi.ddm.actors.LargeMessageProxy.*;
+
 
 public class PermutationHandler extends AbstractLoggingActor {
 
@@ -177,7 +179,8 @@ public class PermutationHandler extends AbstractLoggingActor {
         this.permutationWorkers.add(this.sender());
         this.log().info("Registered {}", this.sender());
         Worker.WelcomeMessage welcomeMessage = new Worker.WelcomeMessage(this.welcomeData);
-        this.sender().tell(welcomeMessage, this.self());
+        LargeMessage<Worker.WelcomeMessage> largeMessage = new LargeMessage<>(welcomeMessage, this.sender());
+        this.largeMessageProxy.tell(largeMessage, this.self());
     }
 
     protected void handle(PermutationWorkRequest message) {
