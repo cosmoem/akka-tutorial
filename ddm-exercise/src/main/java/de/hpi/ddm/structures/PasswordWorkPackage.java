@@ -9,7 +9,7 @@ import java.io.Serializable;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class PasswordWorkpackage implements Serializable {
+public class PasswordWorkPackage implements Serializable {
     private int id;
     private String name;
     private String passwordCharacters;

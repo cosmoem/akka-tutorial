@@ -2,7 +2,9 @@ package de.hpi.ddm.actors;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import akka.actor.AbstractLoggingActor;
 import akka.actor.ActorRef;
@@ -10,7 +12,7 @@ import akka.actor.PoisonPill;
 import akka.actor.Props;
 import akka.actor.Terminated;
 import de.hpi.ddm.structures.BloomFilter;
-import de.hpi.ddm.structures.PasswordWorkpackage;
+import de.hpi.ddm.structures.PasswordWorkPackage;
 import de.hpi.ddm.structures.PermutationWorkPackage;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -40,6 +42,7 @@ public class Master extends AbstractLoggingActor {
 		this.welcomeData = welcomeData;
 		this.passwordWorkPackages = new ArrayList<>();
 		this.permutationWorkPackages = new ArrayList<>();
+		this.resultTracker = new HashMap<>();
 	}
 
 	////////////////////
@@ -86,8 +89,9 @@ public class Master extends AbstractLoggingActor {
 	private final ActorRef largeMessageProxy;
 	private final List<ActorRef> workers;
 	private final BloomFilter welcomeData;
-	private final List<PasswordWorkpackage> passwordWorkPackages;
+	private final List<PasswordWorkPackage> passwordWorkPackages;
 	private final List<PermutationWorkPackage> permutationWorkPackages;
+	private final Map<Integer, Boolean> resultTracker;
 	private long startTime;
 	
 	/////////////////////
@@ -113,6 +117,7 @@ public class Master extends AbstractLoggingActor {
 				.match(PermutationWorkPackageRequest.class, this::handle) // PermutationHandler asks for Work Packages
 				.match(PermutationsReadyMessage.class, this::handle) // PermutationHandler signals that Permutation Calculation is done
 				.match(WorkerWorkRequestMessage.class, this::handle) // Worker asks for next password to crack
+				.match(PasswordCrackerResultMessage.class, this::handle) // Password result from worker
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -138,8 +143,9 @@ public class Master extends AbstractLoggingActor {
 				if (numberOfHints - 5 >= 0) {
 					System.arraycopy(line, 5, hints, 0, numberOfHints);
 				}
-				PasswordWorkpackage passwordWorkpackage = new PasswordWorkpackage(
-						Integer.parseInt(line[0]),
+				int passwordId = Integer.parseInt(line[0]);
+				PasswordWorkPackage passwordWorkpackage = new PasswordWorkPackage(
+						passwordId,
 						line[1],
 						line[2],
 						Integer.parseInt(line[3]),
@@ -147,11 +153,12 @@ public class Master extends AbstractLoggingActor {
 						hints
 				);
 				this.passwordWorkPackages.add(passwordWorkpackage);
+				this.resultTracker.put(passwordId, false);
 			}
 
 			// creation of permutation work packages
 			if (this.permutationWorkPackages.isEmpty()) {
-				PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(0);
+				PasswordWorkPackage passwordWorkpackage = this.passwordWorkPackages.get(0);
 				String passwordCharacters = passwordWorkpackage.getPasswordCharacters();
 				char[] charactersArray = passwordCharacters.toCharArray();
 				for (char character: charactersArray) {
@@ -167,23 +174,6 @@ public class Master extends AbstractLoggingActor {
 			// Fetch further lines from the Reader
 			this.reader.tell(new Reader.ReadMessage(), this.self());
 		}
-
-		// TODO: This is where the task begins:
-		// - The Master received the first batch of input records.
-		// - To receive the next batch, we need to send another ReadMessage to the reader.
-		// - If the received BatchMessage is empty, we have seen all data for this task.
-		// - We need a clever protocol that forms sub-tasks from the seen records, distributes the tasks to the known workers and manages the results.
-		//   -> Additional messages, maybe additional actors, code that solves the subtasks, ...
-		//   -> The code in this handle function needs to be re-written.
-		// - Once the entire processing is done, this.terminate() needs to be called.
-		
-		// Info: Why is the input file read in batches?
-		// a) Latency hiding: The Reader is implemented such that it reads the next batch of data from disk while at the same time the requester of the current batch processes this batch.
-		// b) Memory reduction: If the batches are processed sequentially, the memory consumption can be kept constant; if the entire input is read into main memory, the memory consumption scales at least linearly with the input size.
-		// - It is your choice, how and if you want to make use of the batched inputs. Simply aggregate all batches in the Master and start the processing afterwards, if you wish.
-
-		// TODO: Send (partial) results to the Collector
-		this.collector.tell(new Collector.CollectMessage("If I had results, this would be one."), this.self());
 	}
 
 	protected void handle(Terminated message) {
@@ -221,7 +211,7 @@ public class Master extends AbstractLoggingActor {
 		for (ActorRef worker : this.workers) {
 			if (!this.passwordWorkPackages.isEmpty()) {
 				if (worker.path().parent().equals(sender().path().parent())) {
-					PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
+					PasswordWorkPackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
 					worker.tell(new PasswordWorkPackageMessage(passwordWorkpackage), this.self());
 				}
 			}
@@ -231,8 +221,26 @@ public class Master extends AbstractLoggingActor {
 	private void handle(WorkerWorkRequestMessage message) {
 		// TODO: handle empty work package list
 		if (!this.passwordWorkPackages.isEmpty()) {
-			PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
+			PasswordWorkPackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
 			this.sender().tell(new PasswordWorkPackageMessage(passwordWorkpackage), this.self());
+		}
+	}
+
+	private void handle(PasswordCrackerResultMessage message) {
+		this.collector.tell(message, this.self());
+		this.resultTracker.put(message.getPasswordId(), true);
+		boolean allDone = true;
+
+		for (Boolean value : this.resultTracker.values()) {
+			if (!value) {
+				allDone = false;
+				break;
+			}
+		}
+
+		if (allDone) {
+			this.collector.tell(new Collector.PrintMessage(), this.self());
+			terminate();
 		}
 	}
 

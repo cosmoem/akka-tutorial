@@ -60,7 +60,7 @@ public class Worker extends AbstractLoggingActor {
 	@Data @NoArgsConstructor @AllArgsConstructor
 	public static class PasswordWorkPackageMessage implements Serializable {
 		private static final long serialVersionUID = -1237147518255012838L;
-		private PasswordWorkpackage passwordWorkpackage;
+		private PasswordWorkPackage passwordWorkpackage;
 	}
 
 	@Data
@@ -79,6 +79,13 @@ public class Worker extends AbstractLoggingActor {
 		private HintResult hintResult;
 	}
 
+	@Data @NoArgsConstructor @AllArgsConstructor
+	public static class PasswordCrackerResultMessage implements Serializable {
+		private static final long serialVersionUID = 34564659090942333L;
+		private int passwordId;
+		private String crackedPassword;
+	}
+
 
 	/////////////////
 	// Actor State //
@@ -91,7 +98,7 @@ public class Worker extends AbstractLoggingActor {
 	private final List<ActorRef> passwordCrackerWorkers;
 	private final List<BruteForceWorkPackage> bruteForceWorkPackages;
 	private final Map<Integer, List<HintResult>> hintResults;
-	private final Map<Integer, PasswordWorkpackage> passwordWorkPackages;
+	private final Map<Integer, PasswordWorkPackage> passwordWorkPackages;
 	private final List<Integer> workPackagesReadyForPasswordCracker;
 	private long registrationTime;
 	private final Configuration c = ConfigurationSingleton.get();
@@ -130,6 +137,7 @@ public class Worker extends AbstractLoggingActor {
 				.match(BruteForceWorkerWorkRequestMessage.class, this::handle) // BruteForceWorkers asks for Hint to crack
 				.match(BruteForceResultMessage.class, this::handle) // Receives Result from BruteForceWorker
 				.match(PasswordCrackerWorkRequestMessage.class, this::handle) // PasswordCracker asks for Password to crack
+				.match(PasswordCrackerResultMessage.class, this::handle) // Cracked password result from password cracker
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -158,7 +166,7 @@ public class Worker extends AbstractLoggingActor {
 
 	private void handle(PasswordWorkPackageMessage message) {
 		this.log().info("Received Password Work Package from Master.");
-		PasswordWorkpackage passwordWorkpackage = message.getPasswordWorkpackage();
+		PasswordWorkPackage passwordWorkpackage = message.getPasswordWorkpackage();
 		String[] hints = passwordWorkpackage.getHints();
 		this.numberOfHints = hints.length;
 		int passwordId = passwordWorkpackage.getId();
@@ -224,9 +232,20 @@ public class Worker extends AbstractLoggingActor {
 	}
 
 	private void handle(PasswordCrackerWorkRequestMessage message) {
+		givePasswordCrackerWork();
+	}
+
+	private void handle(PasswordCrackerResultMessage message) {
+		this.getContext()
+				.actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME)
+				.tell(message, this.self());
+		givePasswordCrackerWork();
+	}
+
+	private void givePasswordCrackerWork() {
 		if (!this.workPackagesReadyForPasswordCracker.isEmpty()) {
 			Integer passwordId = this.workPackagesReadyForPasswordCracker.remove(0);
-			PasswordWorkpackage passwordWorkpackage = this.passwordWorkPackages.get(passwordId);
+			PasswordWorkPackage passwordWorkpackage = this.passwordWorkPackages.get(passwordId);
 			List<HintResult> hintResults = this.hintResults.get(passwordId);
 			PasswordAndSolvedHintsMessage passwordAndSolvedHintsMessage = new PasswordAndSolvedHintsMessage(passwordWorkpackage, hintResults);
 			this.sender().tell(passwordAndSolvedHintsMessage, this.self());

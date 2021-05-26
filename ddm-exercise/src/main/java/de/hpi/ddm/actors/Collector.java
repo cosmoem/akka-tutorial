@@ -6,9 +6,9 @@ import java.util.List;
 
 import akka.actor.AbstractLoggingActor;
 import akka.actor.Props;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+
+import static de.hpi.ddm.actors.Worker.*;
 
 public class Collector extends AbstractLoggingActor {
 
@@ -25,12 +25,6 @@ public class Collector extends AbstractLoggingActor {
 	////////////////////
 	// Actor Messages //
 	////////////////////
-
-	@Data @NoArgsConstructor @AllArgsConstructor
-	public static class CollectMessage implements Serializable {
-		private static final long serialVersionUID = -102767440935270949L;
-		private String result;
-	}
 
 	@Data
 	public static class PrintMessage implements Serializable {
@@ -59,17 +53,20 @@ public class Collector extends AbstractLoggingActor {
 	@Override
 	public Receive createReceive() {
 		return receiveBuilder()
-				.match(CollectMessage.class, this::handle)
 				.match(PrintMessage.class, this::handle)
+				.match(PasswordCrackerResultMessage.class, this::handle) // Password result from master
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
-	}
-
-	protected void handle(CollectMessage message) {
-		this.results.add(message.getResult());
 	}
 	
 	protected void handle(PrintMessage message) {
 		this.results.forEach(result -> this.log().info("{}", result));
+	}
+
+	private void handle(PasswordCrackerResultMessage message) {
+		String crackedPassword = message.getCrackedPassword();
+		int passwordId = message.getPasswordId();
+		this.results.add(crackedPassword);
+		this.log().info("Added Cracked password with ID {}: {}", passwordId, crackedPassword);
 	}
 }

@@ -8,9 +8,8 @@ import akka.cluster.Cluster;
 import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
-import de.hpi.ddm.structures.BloomFilter;
 import de.hpi.ddm.structures.HintResult;
-import de.hpi.ddm.structures.PasswordWorkpackage;
+import de.hpi.ddm.structures.PasswordWorkPackage;
 import de.hpi.ddm.systems.WorkerSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -20,9 +19,9 @@ import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public class PasswordCrackerWorker extends AbstractLoggingActor {
 
@@ -48,7 +47,7 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
     @Data @NoArgsConstructor @AllArgsConstructor
     public static class PasswordAndSolvedHintsMessage implements Serializable {
         private static final long serialVersionUID = -1111040922228609111L;
-        private PasswordWorkpackage passwordWorkpackage;
+        private PasswordWorkPackage passwordWorkpackage;
         private List<HintResult> hintResults;
     }
 
@@ -117,15 +116,15 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
 
     private void handle(PasswordAndSolvedHintsMessage message) {
         this.log().info("Hallo wir sind hier angekommen :)");
-        PasswordWorkpackage passwordWorkpackage = message.passwordWorkpackage;
+        PasswordWorkPackage passwordWorkPackage = message.passwordWorkpackage;
         List<Character> hintCharacters = message.hintResults.stream().map(HintResult::getLetter).collect(Collectors.toList());
 
-        String encodedPassword = passwordWorkpackage.getPassword();
+        String encodedPassword = passwordWorkPackage.getPassword();
 
-        int passwordLength = passwordWorkpackage.getPasswordLength();
-        int numberOfHints = passwordWorkpackage.getHints().length;
+        int passwordLength = passwordWorkPackage.getPasswordLength();
+        int numberOfHints = passwordWorkPackage.getHints().length;
         int numberOfPasswordCharacters = passwordLength - numberOfHints;
-        char[] allPasswordCharacters = passwordWorkpackage.getPasswordCharacters().toCharArray();
+        char[] allPasswordCharacters = passwordWorkPackage.getPasswordCharacters().toCharArray();
 
         char[] passwordCharacters = new char[numberOfPasswordCharacters]; // character which can actually be part of the password
         int counter = 0;
@@ -137,9 +136,17 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
             }
         }
 
-        generate(passwordCharacters, passwordLength, "", passwordCharacters.length, encodedPassword);
-
-        //this.sender().tell(); TODO return result + pull? retries ????
+        List<String> result = new ArrayList<>();
+        generate(passwordCharacters, passwordLength, "", passwordCharacters.length, encodedPassword, result);
+        if (!result.isEmpty()) {
+            String crackedPassword = result.get(0);
+            int passwordId = passwordWorkPackage.getId();
+            this.log().info("Cracked password with ID {}: {}", passwordId, crackedPassword);
+            this.sender().tell(new Worker.PasswordCrackerResultMessage(passwordId, crackedPassword), this.self());
+        }
+        else {
+            this.log().info("Could not decode password :(");
+        }
     }
 
     ////////////////////
@@ -154,27 +161,21 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
         }
     }
 
-    static void generate(char[] arr, int i, String s, int len, String encodedPassword)
-    {
-        if (i == 0)
-        {
+    // source: https://www.geeksforgeeks.org/generate-passwords-given-character-set/
+    static void generate(char[] arr, int i, String s, int len, String encodedPassword, List<String> result) {
+        if (result.size() == 1) {
+            return;
+        }
+        if (i == 0) {
             if (encodedPassword.equals(hash(s))) {
-                System.out.println(s + " ist die lösung");
+                result.add(s);
             }
             return;
         }
-
-        // iterate through the array
-        for (int j = 0; j < len; j++)
-        {
-
-            // Create new string with next character
-            // Call generate again until string has
-            // reached its len
+        for (int j = 0; j < len; j++) {
             String appended = s + arr[j];
-            generate(arr, i - 1, appended, len, encodedPassword);
+            generate(arr, i - 1, appended, len, encodedPassword, result);
         }
-        return;
     }
 
     private static String hash(String characters) {
