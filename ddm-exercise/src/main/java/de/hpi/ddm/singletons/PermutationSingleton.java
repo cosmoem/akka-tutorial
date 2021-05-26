@@ -9,11 +9,7 @@ public class PermutationSingleton {
     public static Map<String, String> getPermutations() {
         return permutations;
     }
-/*
-    public static void setPermutations(Map<String, String> permutations) {
-        PermutationSingleton.permutations = permutations;
-    }
-  */
+
     public static void addPermutations(Map<String, String> permutationsPart) {
         permutations.putAll(permutationsPart);
     }

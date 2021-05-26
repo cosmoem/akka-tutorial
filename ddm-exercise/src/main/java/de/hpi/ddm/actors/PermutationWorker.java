@@ -141,6 +141,7 @@ public class PermutationWorker extends AbstractLoggingActor {
         );
 
         PermutationSingleton.addPermutations(permutationsPartialResult);
+        permutationsPartialResult = null;
         PermutationResultMessage permutationResultMessage = new PermutationResultMessage(head, head2);
         this.sender().tell(permutationResultMessage, this.self());
     }

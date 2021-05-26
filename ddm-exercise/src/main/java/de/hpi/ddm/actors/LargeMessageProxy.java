@@ -125,7 +125,6 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		// Serialize to byte array
 
 		KryoPool kryoPool = KryoPoolSingleton.get();
-		//boolean hasRegistration = kryoPool.hasRegistration(Worker.PasswordWorkPackageMessage.class);
 		byte[] messageAsBytes = kryoPool.toBytesWithClass(message);
 		final long messageId = createID();
 
@@ -138,7 +137,9 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 					receiver, bytesChunk, index, messageId, messageAsBytes.length, largeMessage.message.getClass()
 			);
 			receiverProxy.tell(messageChunk, sender);
+			messageChunk = null;
 		}
+		messageAsBytes = null;
 	}
 
 	// TODO delete comment
@@ -150,20 +151,20 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		// Store Message as Chunks
 		long messageId = message.getMessageId();
 		byteBuffer.saveChunksToMap(messageId, message.getOffset(), (byte[]) message.getBytes());
-		final Map<Integer, byte[]> messageChunksMap = byteBuffer.getMap(messageId);
-		messageChunksMap.put(message.getOffset(), (byte[]) message.getBytes());
+		byteBuffer.getMap(messageId).put(message.getOffset(), (byte[]) message.getBytes());
 
 		// Check if all chunks present
 		int partitionSize = (int) Math.ceil(message.getMessageLength() * 1.0 / chunkedMessageSize);
-		if (partitionSize == messageChunksMap.size()) {
+		if (partitionSize == byteBuffer.getMap(messageId).size()) {
 			byte[] destinationMessage = new byte[message.messageLength];
 
 			// Copying message chunks into destinationMessage byte array in correct order
-			List<Integer> sortedChunkNumbers = messageChunksMap.keySet().stream().sorted().collect(Collectors.toList());
+			List<Integer> sortedChunkNumbers = byteBuffer.getMap(messageId).keySet().stream().sorted().collect(Collectors.toList());
 			for (Integer offset : sortedChunkNumbers) { // TODO ensure none are missing?
-				byte[] sourceMessageChunk = messageChunksMap.get(offset);
+				byte[] sourceMessageChunk = byteBuffer.getMap(messageId).get(offset);
 				System.arraycopy(sourceMessageChunk, 0, destinationMessage, offset, sourceMessageChunk.length);
 			}
+			sortedChunkNumbers = null;
 
 			// Deserialize; Decoded Message = Original Message
 			KryoPool kryoPool = KryoPoolSingleton.get();
