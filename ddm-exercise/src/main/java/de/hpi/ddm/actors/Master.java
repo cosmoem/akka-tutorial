@@ -18,6 +18,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import static de.hpi.ddm.actors.Collector.*;
 import static de.hpi.ddm.actors.LargeMessageProxy.*;
 import static de.hpi.ddm.actors.PermutationHandler.*;
 import static de.hpi.ddm.actors.Worker.*;
@@ -80,6 +81,11 @@ public class Master extends AbstractLoggingActor {
 		private static final long serialVersionUID = 12344816432127698L;
 	}
 
+	@Data
+	public static class KillTheSystemMessage implements Serializable {
+		private static final long serialVersionUID = 10171816141617121L;
+	}
+
 	/////////////////
 	// Actor State //
 	/////////////////
@@ -118,6 +124,7 @@ public class Master extends AbstractLoggingActor {
 				.match(PermutationsReadyMessage.class, this::handle) // PermutationHandler signals that Permutation Calculation is done
 				.match(WorkerWorkRequestMessage.class, this::handle) // Worker asks for next password to crack
 				.match(PasswordCrackerResultMessage.class, this::handle) // Password result from worker
+				.match(KillTheSystemMessage.class, this::handle) // Collector is done printing
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -234,8 +241,12 @@ public class Master extends AbstractLoggingActor {
 			}
 		}
 		if (allDone) {
-			terminate();
+			this.collector.tell(new PrintMessage(), this.self());
 		}
+	}
+
+	private void handle(KillTheSystemMessage killTheSystemMessage) {
+		terminate();
 	}
 
 	////////////////////
@@ -243,7 +254,6 @@ public class Master extends AbstractLoggingActor {
 	////////////////////
 
 	protected void terminate() {
-		this.collector.tell(new Collector.PrintMessage(), this.self());
 		this.reader.tell(PoisonPill.getInstance(), ActorRef.noSender());
 		this.collector.tell(PoisonPill.getInstance(), ActorRef.noSender());
 
