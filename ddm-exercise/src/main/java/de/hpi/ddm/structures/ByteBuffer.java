@@ -11,9 +11,9 @@ public class ByteBuffer {
         this.messageMap = new ConcurrentHashMap<>();
     }
 
-    public void saveChunksToMap(Long messageId, int offset, byte[] bytes) {
-        messageMap.computeIfAbsent(messageId, k -> new ConcurrentHashMap<>());
-        messageMap.get(messageId).put(offset, bytes);
+    public void saveChunksToMap(Long messageId, int chunkOffset, byte[] bytes) {
+        messageMap.computeIfAbsent(messageId, id -> new ConcurrentHashMap<>());
+        messageMap.get(messageId).put(chunkOffset, bytes);
     }
 
     public void deleteMapForMessageId(long messageId) {
