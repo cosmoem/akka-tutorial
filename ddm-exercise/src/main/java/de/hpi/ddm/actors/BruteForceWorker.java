@@ -131,7 +131,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
         List<String> permutations = PermutationSingleton.getPermutations();
         for (String string : permutations) {
             String decodedPermutation = string.substring(0, 10);
-            String encodedPermutation = string.substring(11);
+            String encodedPermutation = string.substring(10);
             if(encodedPermutation.equals(encodedHint)) {
                 return decodedPermutation;
             }

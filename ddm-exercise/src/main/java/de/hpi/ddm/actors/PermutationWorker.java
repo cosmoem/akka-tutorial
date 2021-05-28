@@ -128,18 +128,13 @@ public class PermutationWorker extends AbstractLoggingActor {
                 index++;
             }
         }
-        List<String> permutationsPartialResult = new ArrayList<>();
         parallelHeapPermutation(
                 charsWithoutHead,
                 charsWithoutHead.length,
                 charsWithoutHead.length-1,
-                permutationsPartialResult,
                 head,
                 head2
         );
-
-        PermutationSingleton.addPermutations(permutationsPartialResult);
-        permutationsPartialResult = null;
         PermutationResultMessage permutationResultMessage = new PermutationResultMessage(head, head2);
         this.sender().tell(permutationResultMessage, this.self());
     }
@@ -152,7 +147,6 @@ public class PermutationWorker extends AbstractLoggingActor {
             char[] passwordChars,
             int charLength,
             int desiredPermutationLength,
-            List<String> outputMap,
             char head,
             char head2
     ) {
@@ -160,11 +154,11 @@ public class PermutationWorker extends AbstractLoggingActor {
             String correctLengthString = new String(Arrays.copyOf(passwordChars, desiredPermutationLength));
             String permutation = String.valueOf(head) + String.valueOf(head2) + correctLengthString;
             String hashed = hash(permutation);
-            outputMap.add(permutation+hashed);
+            PermutationSingleton.addPermutation(permutation + hashed);
         }
 
         for (int i = 0; i < charLength; i++) {
-            parallelHeapPermutation(passwordChars, charLength - 1, desiredPermutationLength, outputMap, head, head2);
+            parallelHeapPermutation(passwordChars, charLength - 1, desiredPermutationLength, head, head2);
             // If size is odd, swap first and last element
             char temp;
             if (charLength % 2 == 1) {
