@@ -122,8 +122,6 @@ public class Master extends AbstractLoggingActor {
 				.build();
 	}
 
-	// TODO: Terminated-Message & PoisonPill Impl ?
-
 	protected void handle(StartMessage message) {
 		this.log().info("Received StartMessage from MasterSystem.");
 		this.startTime = System.currentTimeMillis();
@@ -219,7 +217,6 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	private void handle(WorkerWorkRequestMessage message) {
-		// TODO: handle empty work package list
 		if (!this.passwordWorkPackages.isEmpty()) {
 			PasswordWorkPackage passwordWorkpackage = this.passwordWorkPackages.remove(0);
 			this.sender().tell(new PasswordWorkPackageMessage(passwordWorkpackage), this.self());
