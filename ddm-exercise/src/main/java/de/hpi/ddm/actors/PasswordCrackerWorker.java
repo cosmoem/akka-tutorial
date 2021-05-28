@@ -10,6 +10,7 @@ import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import de.hpi.ddm.structures.HintResult;
 import de.hpi.ddm.structures.PasswordWorkPackage;
+import de.hpi.ddm.systems.MasterSystem;
 import de.hpi.ddm.systems.WorkerSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -153,6 +154,9 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
     ////////////////////
 
     private void register(Member member) {
+        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
+            this.masterSystem = member;
+        }
         if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
             this.getContext().parent()
                     .tell(new PermutationHandler.WorkerSystemRegistrationMessage(), this.self());

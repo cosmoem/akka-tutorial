@@ -10,6 +10,7 @@ import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.PermutationWorkPackage;
+import de.hpi.ddm.systems.MasterSystem;
 import de.hpi.ddm.systems.WorkerSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -84,6 +85,7 @@ public class PermutationWorker extends AbstractLoggingActor {
         return receiveBuilder()
                 .match(ClusterEvent.CurrentClusterState.class, this::handle)
                 .match(ClusterEvent.MemberUp.class, this::handle)
+                .match(ClusterEvent.MemberRemoved.class, this::handle)
                 .match(Worker.WelcomeMessage.class, this::handle) // Welcome Message from PermutationHandler
                 .match(PermutationWorkMessage.class, this::handle)
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
@@ -102,6 +104,11 @@ public class PermutationWorker extends AbstractLoggingActor {
             if (member.status().equals(MemberStatus.up()))
                 this.register(member);
         });
+    }
+
+    private void handle(ClusterEvent.MemberRemoved message) {
+        if (this.masterSystem.equals(message.member()))
+            this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
 
     private void handle(ClusterEvent.MemberUp message) {
@@ -183,7 +190,10 @@ public class PermutationWorker extends AbstractLoggingActor {
     }
 
     private void register(Member member) {
-        if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
+        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
+            this.masterSystem = member;
+        }
+        else if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
             this.getContext()
                     .actorSelection(member.address() + "/user/" + PermutationHandler.DEFAULT_NAME)
                     .tell(new WorkerSystemRegistrationMessage(), this.self());

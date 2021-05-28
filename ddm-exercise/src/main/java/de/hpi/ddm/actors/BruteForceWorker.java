@@ -2,12 +2,14 @@ package de.hpi.ddm.actors;
 
 import akka.actor.*;
 import akka.cluster.Cluster;
+import akka.cluster.ClusterEvent;
 import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 import de.hpi.ddm.singletons.PermutationSingleton;
 import de.hpi.ddm.structures.BruteForceWorkPackage;
 import de.hpi.ddm.structures.HintResult;
 
+import de.hpi.ddm.systems.MasterSystem;
 import de.hpi.ddm.systems.WorkerSystem;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -79,6 +81,7 @@ public class BruteForceWorker extends AbstractLoggingActor {
         return receiveBuilder()
                 .match(CurrentClusterState.class, this::handle)
                 .match(MemberUp.class, this::handle)
+                .match(MemberRemoved.class, this::handle)
                 .match(WelcomeMessage.class, this::handle) // Welcome message from Worker (parent)
                 .match(HintMessage.class, this::handle) // Receives hint to work on from Worker
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
@@ -94,6 +97,11 @@ public class BruteForceWorker extends AbstractLoggingActor {
 
     private void handle(MemberUp message) {
         this.register(message.member());
+    }
+
+    private void handle(ClusterEvent.MemberRemoved message) {
+        if (this.masterSystem.equals(message.member()))
+            this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
 
     private void handle(WelcomeMessage message) {
@@ -150,6 +158,9 @@ public class BruteForceWorker extends AbstractLoggingActor {
     }
 
     private void register(Member member) {
+        if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
+            this.masterSystem = member;
+        }
         if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
             this.getContext().parent()
                     .tell(new PermutationHandler.WorkerSystemRegistrationMessage(), this.self());
