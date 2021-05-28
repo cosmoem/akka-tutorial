@@ -79,7 +79,6 @@ public class BruteForceWorker extends AbstractLoggingActor {
         return receiveBuilder()
                 .match(CurrentClusterState.class, this::handle)
                 .match(MemberUp.class, this::handle)
-                .match(MemberRemoved.class, this::handle)
                 .match(WelcomeMessage.class, this::handle) // Welcome message from Worker (parent)
                 .match(HintMessage.class, this::handle) // Receives hint to work on from Worker
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
@@ -95,11 +94,6 @@ public class BruteForceWorker extends AbstractLoggingActor {
 
     private void handle(MemberUp message) {
         this.register(message.member());
-    }
-
-    private void handle(MemberRemoved message) {
-        if (this.masterSystem.equals(message.member()))
-            this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
 
     private void handle(WelcomeMessage message) {

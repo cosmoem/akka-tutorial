@@ -84,7 +84,6 @@ public class PermutationWorker extends AbstractLoggingActor {
         return receiveBuilder()
                 .match(ClusterEvent.CurrentClusterState.class, this::handle)
                 .match(ClusterEvent.MemberUp.class, this::handle)
-                .match(ClusterEvent.MemberRemoved.class, this::handle)
                 .match(Worker.WelcomeMessage.class, this::handle) // Welcome Message from PermutationHandler
                 .match(PermutationWorkMessage.class, this::handle)
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
@@ -107,11 +106,6 @@ public class PermutationWorker extends AbstractLoggingActor {
 
     private void handle(ClusterEvent.MemberUp message) {
         this.register(message.member());
-    }
-
-    private void handle(ClusterEvent.MemberRemoved message) {
-        if (this.masterSystem.equals(message.member()))
-            this.self().tell(PoisonPill.getInstance(), ActorRef.noSender());
     }
 
     private void handle(PermutationWorkMessage message) {
