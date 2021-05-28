@@ -29,7 +29,7 @@ public class Configuration {
 	private String actorSystemName = "ddm";			// The name of this application
 	
 	private int numWorkers = 2;						// The number of workers to start locally; should be at least one if the algorithm is started standalone (otherwise there are no workers to run the application)
-	private int numPermutationWorkers = 1;
+	private int numPermutationWorkers = 2;
 	private int numBruteForceWorkers = 2;
 	private int numPasswordCrackerWorkers = 1;
 	
@@ -39,7 +39,7 @@ public class Configuration {
 
 	private int largeMessageChunkSize = 8192;       // Size of each message chunk for large messages (LargeMessageProxy) TODO which size?
 
-	private int welcomeDataSize = 1024; 				// Size of the welcome message's data (in MB) with which each worker should be greeted
+	private int welcomeDataSize = 2; 				// Size of the welcome message's data (in MB) with which each worker should be greeted
 	
 	private static String getDefaultHost() {
         try {
@@ -67,6 +67,7 @@ public class Configuration {
                 case MasterSystem.MASTER_ROLE:
                 	this.role = MasterSystem.MASTER_ROLE;
                 	this.update(commandMaster);
+
                 	DatasetDescriptorSingleton.get().update(commandMaster);
                     break;
                 case WorkerSystem.WORKER_ROLE:
@@ -88,6 +89,11 @@ public class Configuration {
 		this.host = commandMaster.host;
 		this.port = commandMaster.port;
 		this.numWorkers = commandMaster.numWorkers;
+		if (this.numWorkers == 0) {
+			this.numBruteForceWorkers = 0;
+			this.numPermutationWorkers = 0;
+			this.numPasswordCrackerWorkers = 0;
+		}
 		this.startPaused = commandMaster.startPaused;
 		this.bufferSize = commandMaster.bufferSize;
 		this.welcomeDataSize = commandMaster.welcomeDataSize;
@@ -101,9 +107,8 @@ public class Configuration {
 		this.numWorkers = commandWorker.numWorkers;
 	}
 
-	// TODO fix
 	public BloomFilter generateWelcomeData() {
-		int bitSize = 8 * 1024 * 1024; // * this.welcomeDataSize;
+		int bitSize = 8 * 1024 * 1024 * this.welcomeDataSize;
 		return new BloomFilter(bitSize, true);
 	}
 }
