@@ -80,11 +80,6 @@ public class Master extends AbstractLoggingActor {
 		private static final long serialVersionUID = 12344816432127698L;
 	}
 
-	@Data
-	public static class KillTheSystemMessage implements Serializable {
-		private static final long serialVersionUID = 10171816141617121L;
-	}
-
 	/////////////////
 	// Actor State //
 	/////////////////
@@ -123,7 +118,6 @@ public class Master extends AbstractLoggingActor {
 				.match(PermutationsReadyMessage.class, this::handle) // PermutationHandler signals that Permutation Calculation is done
 				.match(WorkerWorkRequestMessage.class, this::handle) // Worker asks for next password to crack
 				.match(PasswordCrackerResultMessage.class, this::handle) // Password result from worker
-				.match(KillTheSystemMessage.class, this::handle) // Collector is done printing
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -236,21 +230,15 @@ public class Master extends AbstractLoggingActor {
 		this.collector.tell(message, this.self());
 		this.resultTracker.put(message.getPasswordId(), true);
 		boolean allDone = true;
-
 		for (Boolean value : this.resultTracker.values()) {
 			if (!value) {
 				allDone = false;
 				break;
 			}
 		}
-
 		if (allDone) {
-			this.collector.tell(new Collector.PrintMessage(), this.self());
+			terminate();
 		}
-	}
-
-	private void handle(KillTheSystemMessage killTheSystemMessage) {
-		terminate();
 	}
 
 	////////////////////

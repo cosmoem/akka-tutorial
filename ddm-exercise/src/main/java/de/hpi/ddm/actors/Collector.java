@@ -8,7 +8,6 @@ import akka.actor.AbstractLoggingActor;
 import akka.actor.Props;
 import lombok.Data;
 
-import static de.hpi.ddm.actors.Master.*;
 import static de.hpi.ddm.actors.Worker.*;
 
 public class Collector extends AbstractLoggingActor {
@@ -36,7 +35,7 @@ public class Collector extends AbstractLoggingActor {
 	// Actor State //
 	/////////////////
 	
-	private List<String> results = new ArrayList<>();
+	private final List<String> results = new ArrayList<>();
 	
 	/////////////////////
 	// Actor Lifecycle //
@@ -62,7 +61,6 @@ public class Collector extends AbstractLoggingActor {
 	
 	protected void handle(PrintMessage message) {
 		this.results.forEach(result -> this.log().info("{}", result));
-		this.sender().tell(new KillTheSystemMessage(), this.self());
 	}
 
 	private void handle(PasswordCrackerResultMessage message) {
