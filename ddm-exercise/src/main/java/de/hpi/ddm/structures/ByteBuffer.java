@@ -1,19 +1,23 @@
 package de.hpi.ddm.structures;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ByteBuffer {
-    // message ID to (chunk number to chunk message bytes)
+    // message ID to (chunk offset to chunk message bytes)
     private final Map<Long, Map<Integer, byte[]>> messageMap;
 
     public ByteBuffer() {
-        this.messageMap = new HashMap<>();
+        this.messageMap = new ConcurrentHashMap<>();
     }
 
-    public void saveChunksToMap(Long messageId, int offset, byte[] bytes) {
-        messageMap.computeIfAbsent(messageId, k -> new HashMap<>());
-        messageMap.get(messageId).put(offset, bytes);
+    public void saveChunksToMap(Long messageId, int chunkOffset, byte[] bytes) {
+        messageMap.computeIfAbsent(messageId, id -> new ConcurrentHashMap<>());
+        messageMap.get(messageId).put(chunkOffset, bytes);
+    }
+
+    public void deleteMapForMessageId(long messageId) {
+        this.messageMap.remove(messageId);
     }
 
     public Map<Integer, byte[]> getMap(Long messageId) {
