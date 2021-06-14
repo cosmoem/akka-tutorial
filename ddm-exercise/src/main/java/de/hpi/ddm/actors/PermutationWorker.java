@@ -22,6 +22,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+import static de.hpi.ddm.actors.Master.*;
 import static de.hpi.ddm.actors.PermutationHandler.*;
 
 
@@ -96,7 +97,7 @@ public class PermutationWorker extends AbstractLoggingActor {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
         int sizeInMB = message.getWelcomeData().getSizeInMB();
         this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
-        this.sender().tell(new PermutationWorkRequest(), this.self());
+        this.context().parent().tell(new PermutationWorkRequest(), this.self());
     }
 
     private void handle(ClusterEvent.CurrentClusterState message) {
@@ -192,11 +193,9 @@ public class PermutationWorker extends AbstractLoggingActor {
     private void register(Member member) {
         if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
             this.masterSystem = member;
-        }
-        else if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
             this.getContext()
-                    .actorSelection(member.address() + "/user/" + PermutationHandler.DEFAULT_NAME)
-                    .tell(new WorkerSystemRegistrationMessage(), this.self());
+                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
+                    .tell(new RegistrationMessage(), this.self());
             this.registrationTime = System.currentTimeMillis();
         }
     }

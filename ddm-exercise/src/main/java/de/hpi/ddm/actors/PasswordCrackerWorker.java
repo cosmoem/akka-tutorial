@@ -24,6 +24,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static de.hpi.ddm.actors.Master.*;
+
 public class PasswordCrackerWorker extends AbstractLoggingActor {
 
     ////////////////////////
@@ -112,7 +114,7 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
         final long transmissionTime = System.currentTimeMillis() - this.registrationTime;
         int sizeInMB = message.getWelcomeData().getSizeInMB();
         this.log().info("WelcomeMessage with " + sizeInMB + " MB data received in " + transmissionTime + " ms.");
-        this.sender().tell(new Worker.PasswordCrackerWorkRequestMessage(), this.self());
+        this.context().parent().tell(new Worker.PasswordCrackerWorkRequestMessage(), this.self());
     }
 
     private void handle(PasswordAndSolvedHintsMessage message) {
@@ -156,10 +158,9 @@ public class PasswordCrackerWorker extends AbstractLoggingActor {
     private void register(Member member) {
         if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
             this.masterSystem = member;
-        }
-        if (member.hasRole(WorkerSystem.WORKER_ROLE)) {
-            this.getContext().parent()
-                    .tell(new PermutationHandler.WorkerSystemRegistrationMessage(), this.self());
+            this.getContext()
+                    .actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
+                    .tell(new RegistrationMessage(), this.self());
             this.registrationTime = System.currentTimeMillis();
         }
     }
