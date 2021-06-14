@@ -4,7 +4,6 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 import akka.actor.*;
@@ -138,7 +137,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 
 		String messageId = message.getMessageId().toString();
 		int chunkOffset = message.getChunkOffset();
-		this.sender().tell(new AckMessage(messageId, chunkOffset), this.self()); // TODO what if ACK is never received????
+		this.sender().tell(new AckMessage(messageId, chunkOffset), this.self()); // TODO what if ACK is never received?
 
 		receiverByteBuffer.saveChunksToMap(messageId, chunkOffset, (byte[]) message.getBytes());
 		receiverByteBuffer.getMap(messageId).put(chunkOffset, (byte[]) message.getBytes());
@@ -161,6 +160,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			message.getReceiver().tell(decodedMessage, message.getSender());
 			this.receiverByteBuffer.deleteMapForMessageId(messageId);
 		}
+		// TODO handle missing message chunks?
 	}
 
 	private void handle(AckMessage message) {

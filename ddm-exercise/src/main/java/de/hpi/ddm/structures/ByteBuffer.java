@@ -1,7 +1,6 @@
 package de.hpi.ddm.structures;
 
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ByteBuffer {

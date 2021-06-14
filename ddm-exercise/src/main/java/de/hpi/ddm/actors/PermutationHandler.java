@@ -23,7 +23,6 @@ import java.util.Map;
 
 import static de.hpi.ddm.actors.Master.*;
 import static de.hpi.ddm.actors.PermutationWorker.*;
-import static de.hpi.ddm.actors.LargeMessageProxy.*;
 
 
 public class PermutationHandler extends AbstractLoggingActor {

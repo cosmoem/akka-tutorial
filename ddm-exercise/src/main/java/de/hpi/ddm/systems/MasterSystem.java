@@ -48,7 +48,7 @@ public class MasterSystem {
 
 		int numWorkers = c.getNumWorkers();
 		if (numWorkers > 0) {
-			ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
+			ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME + "-mastersys");
 		}
 
 		Cluster.get(system).registerOnMemberUp(() -> {
