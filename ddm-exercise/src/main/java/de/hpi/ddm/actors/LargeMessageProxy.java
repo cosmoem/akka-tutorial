@@ -48,13 +48,13 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 
 		private int messageLength;
 		private int chunkOffset;
-		private UUID messageId;
+		private String messageId;
 	}
 
 	@Data @NoArgsConstructor @AllArgsConstructor
 	public static class AckMessage implements Serializable {
 		private static final long serialVersionUID = 6453807787692319993L;
-		private UUID messageId;
+		private String messageId;
 		private int chunkOffset;
 	}
 
@@ -65,7 +65,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	private int chunkedMessageSize;
 	private ByteBuffer receiverByteBuffer;
 	private ByteBuffer senderByteBuffer;
-	private Map<UUID, Map<Integer, Cancellable>> sendAttempts;
+	private Map<String, Map<Integer, Cancellable>> sendAttempts;
 
 	/////////////////////
 	// Actor Lifecycle //
@@ -106,7 +106,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 
 		KryoPool kryoPool = KryoPoolSingleton.get();
 		byte[] messageAsBytes = kryoPool.toBytesWithClass(message);
-		final UUID messageId = createID();
+		final String messageId = createID();
 
 		// Send bytes chunk-wise to receiver proxy
 		for(int index = 0; index < messageAsBytes.length; index += chunkedMessageSize) {
@@ -136,7 +136,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	private void handle(BytesMessage<?> message) {
 		// Store Message as Chunks
 
-		UUID messageId = message.getMessageId();
+		String messageId = message.getMessageId().toString();
 		int chunkOffset = message.getChunkOffset();
 		this.sender().tell(new AckMessage(messageId, chunkOffset), this.self()); // TODO what if ACK is never received????
 
@@ -164,7 +164,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	}
 
 	private void handle(AckMessage message) {
-		UUID messageId = message.getMessageId();
+		String messageId = message.getMessageId();
 		int chunkOffset = message.getChunkOffset();
 		// cancel cancellable
 		sendAttempts.get(messageId).get(chunkOffset).cancel();
@@ -177,8 +177,8 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	// Helper Methods //
 	////////////////////
 
-	private UUID createID() {
-		return UUID.randomUUID();
+	private String createID() {
+		return UUID.randomUUID().toString();
 	}
 
 	// Receiver expects BytesMessage therefore we need to return a BytesMessage object in our chunkCreator
@@ -186,7 +186,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			ActorRef receiver,
 			byte[] messageBytes,
 			int chunkOffset,
-			UUID messageId,
+			String messageId,
 			int messageLength
 	) {
 		BytesMessage<byte[]> bytesMessage = new BytesMessage<>();
