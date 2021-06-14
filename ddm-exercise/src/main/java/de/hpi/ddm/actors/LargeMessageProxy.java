@@ -113,14 +113,14 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 					messageAsBytes, index, Math.min(index + chunkedMessageSize, messageAsBytes.length)
 			);
 			BytesMessage<byte[]> messageChunk = chunkedBytesMessageCreator(
-					receiver, bytesChunk, index, messageId, messageAsBytes.length
+					receiver, sender, bytesChunk, index, messageId, messageAsBytes.length
 			);
 
 			senderByteBuffer.saveChunksToMap(messageId, index, bytesChunk);
 
 			Cancellable sendAttempt = this.getContext().system().scheduler()
 				.scheduleAtFixedRate(
-					Duration.ZERO,
+					Duration.ofMillis(new Random().nextInt(3000)),
 					Duration.ofSeconds(5),
 					() -> receiverProxy.tell(messageChunk, this.self()),
 					this.context().dispatcher()
@@ -169,8 +169,11 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		// cancel cancellable
 		Map<Integer, Cancellable> cancellableMap = sendAttempts.get(messageId);
 		if (cancellableMap != null) {
-			cancellableMap.get(chunkOffset).cancel();
-			cancellableMap.remove(chunkOffset);
+			Cancellable cancellable = cancellableMap.get(chunkOffset);
+			if (cancellable != null) {
+				cancellable.cancel();
+				cancellableMap.remove(chunkOffset);
+			}
 			if (cancellableMap.isEmpty()) {
 				sendAttempts.remove(messageId);
 			}
@@ -197,6 +200,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	// Receiver expects BytesMessage therefore we need to return a BytesMessage object in our chunkCreator
 	private BytesMessage<byte[]> chunkedBytesMessageCreator(
 			ActorRef receiver,
+			ActorRef sender,
 			byte[] messageBytes,
 			int chunkOffset,
 			String messageId,
@@ -208,7 +212,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		bytesMessage.chunkOffset = chunkOffset;
 		bytesMessage.messageId = messageId;
 		bytesMessage.messageLength = messageLength;
-		bytesMessage.sender = this.sender();
+		bytesMessage.sender = sender;
 		return bytesMessage;
 	}
 }
