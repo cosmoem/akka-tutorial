@@ -136,10 +136,6 @@
 					<showDeprecation>true</showDeprecation>
 					<compilerArgs>
 						<arg>-Xlint:all</arg>
-						<arg>-XX:+UseG1GC</arg>
-						<arg>-XX:+PrintGCDetails</arg>
-						<arg>-verbose:gc</arg>
-						<arg>-Xloggc:gcdetails.log</arg>
 					</compilerArgs>
 				</configuration>
 			</plugin>
