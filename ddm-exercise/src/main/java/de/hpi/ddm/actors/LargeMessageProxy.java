@@ -1,14 +1,12 @@
 package de.hpi.ddm.actors;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import akka.actor.AbstractLoggingActor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSelection;
-import akka.actor.Props;
+import akka.actor.*;
 import com.twitter.chill.KryoPool;
 import de.hpi.ddm.singletons.ConfigurationSingleton;
 import de.hpi.ddm.singletons.KryoPoolSingleton;
@@ -49,7 +47,14 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 
 		private int messageLength;
 		private int chunkOffset;
-		private long messageId;
+		private String messageId;
+	}
+
+	@Data @NoArgsConstructor @AllArgsConstructor
+	public static class AckMessage implements Serializable {
+		private static final long serialVersionUID = 6453807787692319993L;
+		private String messageId;
+		private int chunkOffset;
 	}
 
 	/////////////////
@@ -57,8 +62,9 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	/////////////////
 
 	private int chunkedMessageSize;
-	private AtomicLong idCounter;
-	private ByteBuffer byteBuffer;
+	private ByteBuffer receiverByteBuffer;
+	private ByteBuffer senderByteBuffer;
+	private Map<String, Map<Integer, Cancellable>> sendAttempts;
 
 	/////////////////////
 	// Actor Lifecycle //
@@ -69,8 +75,9 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		Reaper.watchWithDefaultReaper(this);
 		
 		chunkedMessageSize = ConfigurationSingleton.get().getLargeMessageChunkSize();
-		idCounter = new AtomicLong();
-		byteBuffer = new ByteBuffer();
+		receiverByteBuffer = new ByteBuffer();
+		senderByteBuffer = new ByteBuffer();
+		sendAttempts = new HashMap<>();
 	}
 
 	////////////////////
@@ -82,6 +89,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		return receiveBuilder()
 				.match(LargeMessage.class, this::handle) // Sender Proxy
 				.match(BytesMessage.class, this::handle) // Receiver Proxy
+				.match(AckMessage.class, this::handle) // ACK from Receiver to Sender for received Chunk
 				.matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
 				.build();
 	}
@@ -97,7 +105,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 
 		KryoPool kryoPool = KryoPoolSingleton.get();
 		byte[] messageAsBytes = kryoPool.toBytesWithClass(message);
-		final long messageId = createID();
+		final String messageId = createID();
 
 		// Send bytes chunk-wise to receiver proxy
 		for(int index = 0; index < messageAsBytes.length; index += chunkedMessageSize) {
@@ -107,34 +115,74 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			BytesMessage<byte[]> messageChunk = chunkedBytesMessageCreator(
 					receiver, bytesChunk, index, messageId, messageAsBytes.length
 			);
-			receiverProxy.tell(messageChunk, sender);
+
+			senderByteBuffer.saveChunksToMap(messageId, index, bytesChunk);
+
+			Cancellable sendAttempt = this.getContext().system().scheduler()
+				.scheduleAtFixedRate(
+					Duration.ZERO,
+					Duration.ofSeconds(5),
+					() -> receiverProxy.tell(messageChunk, this.self()),
+					this.context().dispatcher()
+				);
+
+			sendAttempts.computeIfAbsent(messageId, id -> new ConcurrentHashMap<>());
+			sendAttempts.get(messageId).put(index, sendAttempt);
 		}
 	}
 
 	// Receiver proxy
 	private void handle(BytesMessage<?> message) {
 		// Store Message as Chunks
-		long messageId = message.getMessageId();
-		byteBuffer.saveChunksToMap(messageId, message.getChunkOffset(), (byte[]) message.getBytes());
-		byteBuffer.getMap(messageId).put(message.getChunkOffset(), (byte[]) message.getBytes());
+
+		String messageId = message.getMessageId().toString();
+		int chunkOffset = message.getChunkOffset();
+		this.sender().tell(new AckMessage(messageId, chunkOffset), this.self()); // TODO what if ACK is never received?
+
+		receiverByteBuffer.saveChunksToMap(messageId, chunkOffset, (byte[]) message.getBytes());
+		receiverByteBuffer.getMap(messageId).put(chunkOffset, (byte[]) message.getBytes());
 
 		// Check if all chunks present
 		int partitionSize = (int) Math.ceil(message.getMessageLength() * 1.0 / chunkedMessageSize);
-		if (partitionSize == byteBuffer.getMap(messageId).size()) {
+		if (partitionSize == receiverByteBuffer.getMap(messageId).size()) {
 			byte[] destinationMessage = new byte[message.messageLength];
 
 			// Copying message chunks into destinationMessage byte array in correct order
-			List<Integer> sortedChunkOffsets = byteBuffer.getMap(messageId).keySet().stream().sorted().collect(Collectors.toList());
-			for (Integer chunkOffset : sortedChunkOffsets) {
-				byte[] sourceMessageChunk = byteBuffer.getMap(messageId).get(chunkOffset);
-				System.arraycopy(sourceMessageChunk, 0, destinationMessage, chunkOffset, sourceMessageChunk.length);
+			List<Integer> sortedChunkOffsets = receiverByteBuffer.getMap(messageId).keySet().stream().sorted().collect(Collectors.toList());
+			for (Integer offset : sortedChunkOffsets) {
+				byte[] sourceMessageChunk = receiverByteBuffer.getMap(messageId).get(offset);
+				System.arraycopy(sourceMessageChunk, 0, destinationMessage, offset, sourceMessageChunk.length);
 			}
 
 			// Deserialize; Decoded Message = Original Message
 			KryoPool kryoPool = KryoPoolSingleton.get();
 			Object decodedMessage = kryoPool.fromBytes(destinationMessage);
 			message.getReceiver().tell(decodedMessage, message.getSender());
-			this.byteBuffer.deleteMapForMessageId(messageId);
+			this.receiverByteBuffer.deleteMapForMessageId(messageId);
+		}
+		// TODO handle missing message chunks?
+	}
+
+	private void handle(AckMessage message) {
+		String messageId = message.getMessageId();
+		int chunkOffset = message.getChunkOffset();
+		// cancel cancellable
+		Map<Integer, Cancellable> cancellableMap = sendAttempts.get(messageId);
+		if (cancellableMap != null) {
+			cancellableMap.get(chunkOffset).cancel();
+			cancellableMap.remove(chunkOffset);
+			if (cancellableMap.isEmpty()) {
+				sendAttempts.remove(messageId);
+			}
+		}
+
+		// delete cancellable and message
+		Map<Integer, byte[]> senderByteBufferMap = senderByteBuffer.getMap(messageId);
+		if(senderByteBufferMap != null) {
+			senderByteBufferMap.remove(chunkOffset);
+			if (senderByteBufferMap.isEmpty()) {
+				senderByteBuffer.deleteMapForMessageId(messageId);
+			}
 		}
 	}
 
@@ -142,8 +190,8 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	// Helper Methods //
 	////////////////////
 
-	private long createID() {
-		return this.idCounter.getAndIncrement();
+	private String createID() {
+		return UUID.randomUUID().toString();
 	}
 
 	// Receiver expects BytesMessage therefore we need to return a BytesMessage object in our chunkCreator
@@ -151,7 +199,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			ActorRef receiver,
 			byte[] messageBytes,
 			int chunkOffset,
-			long messageId,
+			String messageId,
 			int messageLength
 	) {
 		BytesMessage<byte[]> bytesMessage = new BytesMessage<>();
