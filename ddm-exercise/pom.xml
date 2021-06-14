@@ -19,9 +19,15 @@
 		<fastutil.version>8.5.4</fastutil.version>
 		<opencsv.version>5.4</opencsv.version>
 		<junit.version>4.13.2</junit.version>
+		<commons-lang.version>2.6</commons-lang.version>
 	</properties>
 
 	<dependencies>
+		<dependency>
+			<groupId>commons-lang</groupId>
+			<artifactId>commons-lang</artifactId>
+			<version>${commons-lang.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>com.typesafe.akka</groupId>
 			<artifactId>akka-actor_${scala.version}</artifactId>
@@ -128,7 +134,9 @@
 					<fork>true</fork>
 					<showWarnings>true</showWarnings>
 					<showDeprecation>true</showDeprecation>
-					<compilerArgument>-Xlint:all</compilerArgument>
+					<compilerArgs>
+						<arg>-Xlint:all</arg>
+					</compilerArgs>
 				</configuration>
 			</plugin>
 			<plugin>

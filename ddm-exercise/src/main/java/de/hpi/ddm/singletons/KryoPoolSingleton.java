@@ -6,8 +6,13 @@ import com.twitter.chill.KryoPool;
 public class KryoPoolSingleton {
 
 	private static final int POOL_SIZE = 10;
-	private static final KryoPool kryo = KryoPool.withByteArrayOutputStream(POOL_SIZE, new KryoInstantiator());
-	
+	private static final KryoPool kryo;
+
+	static {
+		KryoInstantiator kryoInstantiator = new KryoInstantiator();
+		kryo = KryoPool.withByteArrayOutputStream(POOL_SIZE, kryoInstantiator);
+	}
+
 	public static KryoPool get() {
 		return kryo;
 	}

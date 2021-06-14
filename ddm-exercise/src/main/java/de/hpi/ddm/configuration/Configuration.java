@@ -28,7 +28,10 @@ public class Configuration {
 	
 	private String actorSystemName = "ddm";			// The name of this application
 	
-	private int numWorkers = 4;						// The number of workers to start locally; should be at least one if the algorithm is started standalone (otherwise there are no workers to run the application)
+	private int numWorkers = 2;						// The number of workers to start locally; should be at least one if the algorithm is started standalone (otherwise there are no workers to run the application)
+	private int numPermutationWorkers = 2;
+	private int numBruteForceWorkers = 2;
+	private int numPasswordCrackerWorkers = 1;
 	
 	private boolean startPaused = false;			// Wait for some console input to start; useful, if we want to wait manually until all ActorSystems in the cluster are started (e.g. to avoid work stealing effects in performance evaluations)
 	
@@ -64,6 +67,7 @@ public class Configuration {
                 case MasterSystem.MASTER_ROLE:
                 	this.role = MasterSystem.MASTER_ROLE;
                 	this.update(commandMaster);
+
                 	DatasetDescriptorSingleton.get().update(commandMaster);
                     break;
                 case WorkerSystem.WORKER_ROLE:
@@ -85,6 +89,11 @@ public class Configuration {
 		this.host = commandMaster.host;
 		this.port = commandMaster.port;
 		this.numWorkers = commandMaster.numWorkers;
+		if (this.numWorkers == 0) {
+			this.numBruteForceWorkers = 0;
+			this.numPermutationWorkers = 0;
+			this.numPasswordCrackerWorkers = 0;
+		}
 		this.startPaused = commandMaster.startPaused;
 		this.bufferSize = commandMaster.bufferSize;
 		this.welcomeDataSize = commandMaster.welcomeDataSize;
@@ -97,8 +106,9 @@ public class Configuration {
 		this.masterPort = commandWorker.masterport;
 		this.numWorkers = commandWorker.numWorkers;
 	}
-	
+
 	public BloomFilter generateWelcomeData() {
-		return new BloomFilter(8 * 1024 * 1024 * this.welcomeDataSize, true);
+		int bitSize = 8 * 1024 * 1024 * this.welcomeDataSize;
+		return new BloomFilter(bitSize, true);
 	}
 }

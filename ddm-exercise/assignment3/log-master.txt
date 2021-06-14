@@ -1,0 +1,240 @@
+[14:25:32.158  INFO]                                    local| Slf4jLogger started
+[14:25:32.441  INFO]           ArteryTcpTransport(akka://ddm)| Remoting started with transport [Artery tcp]; listening on address [akka://ddm@192.168.2.108:7877] with UID [3430194025759787736]
+[14:25:32.456  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Starting up, Akka version [2.6.14] ...
+[14:25:32.544  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Registered cluster JMX MBean [akka:type=Cluster]
+[14:25:32.544  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Started up successfully
+[14:25:32.581  INFO] stem/cluster/core/daemon/downingProvider| SBR started. Config: strategy [KeepMajority], stable-after [20 seconds], down-all-when-unstable [15 seconds], selfUniqueAddress [akka://ddm@192.168.2.108:7877#3430194025759787736], selfDc [default].
+[14:25:32.589  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Node [akka://ddm@192.168.2.108:7877] is JOINING itself (with roles [master, dc-default], version [0.0.0]) and forming new cluster
+[14:25:32.590  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - is the new leader among reachable nodes (more leaders may exist)
+[14:25:32.596  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Leader is moving node [akka://ddm@192.168.2.108:7877] to [Up]
+[14:25:32.610  INFO] stem/cluster/core/daemon/downingProvider| This node is now the leader responsible for taking SBR decisions among the reachable nodes (more leaders may exist).
+[14:25:32.642  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Metrics collection has started successfully
+[14:25:32.651  INFO] kka://ddm@192.168.2.108:7877/user/master| Received StartMessage from MasterSystem.
+[14:25:32.655  INFO] kka://ddm@192.168.2.108:7877/user/reader| Started Reading...
+[14:25:32.702  INFO] kka://ddm@192.168.2.108:7877/user/master| Received BatchMessage from Reader.
+[14:25:32.706  INFO] kka://ddm@192.168.2.108:7877/user/master| Received BatchMessage from Reader.
+[14:25:32.707  INFO] kka://ddm@192.168.2.108:7877/user/master| Received BatchMessage from Reader.
+[14:25:32.707  INFO] kka://ddm@192.168.2.108:7877/user/reader| Reached end of File stopped reading
+[14:25:33.931  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Received InitJoin message from [Actor[akka://ddm@192.168.2.105:7879/system/cluster/core/daemon/joinSeedNodeProcess-1#623523813]] to [akka://ddm@192.168.2.108:7877]
+[14:25:33.931  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Sending InitJoinAck message from node [akka://ddm@192.168.2.108:7877] to [Actor[akka://ddm@192.168.2.105:7879/system/cluster/core/daemon/joinSeedNodeProcess-1#623523813]] (version [2.6.14])
+[14:25:34.004  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Node [akka://ddm@192.168.2.105:7879] is JOINING, roles [worker, dc-default], version [0.0.0]
+[14:25:34.095  INFO] kka://ddm@192.168.2.108:7877/user/master| Registered Actor[akka://ddm@192.168.2.105:7879/user/permutation-handler#330849780]
+[14:25:34.354  INFO] kka://ddm@192.168.2.108:7877/user/master| Received Request for Permutation Work Packages from permutation-handler
+[14:25:34.601  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Leader is moving node [akka://ddm@192.168.2.105:7879] to [Up]
+[14:25:34.602  INFO] stem/cluster/core/daemon/downingProvider| This node is not the leader any more and not responsible for taking SBR decisions.
+[14:25:34.622  INFO] kka://ddm@192.168.2.108:7877/user/master| Registered Actor[akka://ddm@192.168.2.105:7879/user/worker0#778858668]
+[14:25:34.623  INFO] kka://ddm@192.168.2.108:7877/user/master| Registered Actor[akka://ddm@192.168.2.105:7879/user/worker1#-447756254]
+[14:25:35.616  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - is no longer leader
+[14:26:06.066  INFO] kka://ddm@192.168.2.108:7877/user/master| Received Signal that Permutations are ready for System user
+[14:26:10.243  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 1: GGGFGFFFFG
+[14:26:10.778  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 2: EFFFEFFEEE
+[14:26:14.114  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 4: CCCCGGCCGG
+[14:26:14.727  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 3: KDDDKDKDKD
+[14:26:17.202  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 6: GHGGHGGHHH
+[14:26:18.298  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 5: BDDBDDDDDB
+[14:26:21.816  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 7: DFFFDFDFDD
+[14:26:22.486  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 8: IIIHHHHIHI
+[14:26:25.223  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 9: CCJCJCJCCJ
+[14:26:27.497  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 10: BCCBBCBCCC
+[14:26:28.582  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 11: IDDDDDIDDI
+[14:26:30.640  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 12: DDDAADDDDD
+[14:26:32.790  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 13: CCCFCCFFCC
+[14:26:34.771  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 14: BJBJJJBBJJ
+[14:26:37.304  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 16: JJAAAAJAJA
+[14:26:37.315  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 15: BBGBGGGBBB
+[14:26:40.185  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 17: AJAAJJJJJJ
+[14:26:41.567  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 18: EJJEJEJJEE
+[14:26:45.113  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 19: GDDGGGDGDG
+[14:26:47.129  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 20: FFEFEEEFFF
+[14:26:50.690  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 22: ABBBAABAAA
+[14:26:50.742  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 21: CCCHCHCCCC
+[14:26:54.091  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 24: HBHHHBBHHH
+[14:26:55.235  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 23: BGBGBGBBBG
+[14:26:58.555  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 26: CGGCCCGGGG
+[14:26:59.973  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 25: EJEEJJEEJE
+[14:27:03.175  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 27: DHDDHHDHDD
+[14:27:04.042  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 28: BCBCBCBBBC
+[14:27:07.179  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 30: BBIIBIBIIB
+[14:27:07.874  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 29: CEECECCCEC
+[14:27:09.482  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 31: EAAAEAEEAE
+[14:27:12.400  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 32: DCDDCCDDDD
+[14:27:12.890  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 33: IICICCICCC
+[14:27:16.612  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 35: JJJJDJDDJJ
+[14:27:17.619  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 34: EIIIEIIIIE
+[14:27:19.535  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 36: HKHKHKKHKK
+[14:27:22.395  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 37: EHEHEEEHEE
+[14:27:23.381  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 38: BBKKKKBKBB
+[14:27:27.164  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 40: GGGBBBGBBB
+[14:27:27.164  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 39: FDDDFFDDDF
+[14:27:32.854  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 42: JJBJJBBBJJ
+[14:27:33.069  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 41: EIEIEEEEEE
+[14:27:37.435  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 44: GCGCGCCGGG
+[14:27:38.766  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 43: BGBBGGGGGB
+[14:27:42.565  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 45: EEHHEHHHHH
+[14:27:43.088  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 46: DAAAADDDDA
+[14:27:46.577  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 47: KKIIIIIKIK
+[14:27:48.032  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 48: DDIDDIDIDI
+[14:27:51.388  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 49: FDDFDDDFDF
+[14:27:51.442  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 50: IGGGGIIIII
+[14:27:53.506  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 52: AAADDDDDDD
+[14:27:57.459  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 51: IDIDDIDDDI
+[14:27:58.524  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 53: HHHDHDHDDH
+[14:28:01.805  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 54: GBBGGBBGBG
+[14:28:02.142  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 55: DBDBDDBDDD
+[14:28:04.636  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 56: GGGGEGGGGG
+[14:28:07.196  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 57: JJHHHJJJHJ
+[14:28:09.745  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 58: CJCJCJJCCC
+[14:28:11.983  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 59: KKCKCCKKCK
+[14:28:13.136  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 60: KDDDKDDKKD
+[14:28:16.046  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 61: GHHGHGHHHG
+[14:28:17.225  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 62: GFGFFGGFGF
+[14:28:19.781  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 63: HHCHCCCHCC
+[14:28:21.763  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 64: DDADDADADA
+[14:28:25.071  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 65: AAAIAIAIII
+[14:28:27.343  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 66: IDIIIIDDII
+[14:28:29.633  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 67: FGGFFGGFGG
+[14:28:31.759  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 68: HHAHAHAAAA
+[14:28:33.232  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 69: GAAAGGGAGA
+[14:28:35.583  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 70: CCCACCCACC
+[14:28:38.931  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 72: KIKIKIIKKI
+[14:28:39.032  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 71: CCCKKCKKCK
+[14:28:43.008  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 73: CCFFCCFFCF
+[14:28:43.057  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 74: ICICCICIII
+[14:28:46.257  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 76: JJDDJJDDJJ
+[14:28:48.320  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 75: AAGGAAGAGG
+[14:28:48.585  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 77: BBFFBBBBFF
+[14:28:52.301  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 79: FFBBBBBBBF
+[14:28:52.704  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 78: BCCBBBCCCC
+[14:28:55.323  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 80: HKHKKHHKKH
+[14:28:56.902  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 81: IHHIIHIHII
+[14:28:59.929  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 82: BBBBGBBBGB
+[14:29:00.381  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 83: CDCDCDCCDD
+[14:29:03.532  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 85: BBBDDDBDBB
+[14:29:03.729  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 84: KAAKKAKKKK
+[14:29:07.599  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 87: IIIDIDDIDI
+[14:29:07.728  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 86: GGGJJGJGGJ
+[14:29:11.444  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 88: KIIKIIIIIK
+[14:29:13.495  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 89: AGGGGGAAAA
+[14:29:14.640  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 90: AAJJJAJJJJ
+[14:29:17.650  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 91: KKEEKKEKEE
+[14:29:18.939  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 92: FFKFKKKKFK
+[14:29:21.165  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 93: GJJGJGGJJJ
+[14:29:23.055  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 94: GGGAAAAAAG
+[14:29:24.308  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 95: JJJHHJJHHH
+[14:29:27.748  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 97: KFKKKKKFKK
+[14:29:27.793  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 96: DFDDDDFDDF
+[14:29:31.403  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 98: AAACCAAACC
+[14:29:32.028  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 99: EAEAAEAAEA
+[14:29:34.464  INFO] ://ddm@192.168.2.108:7877/user/collector| Added Cracked password with ID 100: AAAAKAAKKA
+[14:29:34.464  INFO] ://ddm@192.168.2.108:7877/user/collector| GGGFGFFFFG
+[14:29:34.464  INFO] ://ddm@192.168.2.108:7877/user/collector| EFFFEFFEEE
+[14:29:34.464  INFO] ://ddm@192.168.2.108:7877/user/collector| CCCCGGCCGG
+[14:29:34.464  INFO] ://ddm@192.168.2.108:7877/user/collector| KDDDKDKDKD
+[14:29:34.464  INFO] ://ddm@192.168.2.108:7877/user/collector| GHGGHGGHHH
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| BDDBDDDDDB
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| DFFFDFDFDD
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| IIIHHHHIHI
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| CCJCJCJCCJ
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| BCCBBCBCCC
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| IDDDDDIDDI
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| DDDAADDDDD
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| CCCFCCFFCC
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| BJBJJJBBJJ
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| JJAAAAJAJA
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| BBGBGGGBBB
+[14:29:34.465  INFO] ://ddm@192.168.2.108:7877/user/collector| AJAAJJJJJJ
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| EJJEJEJJEE
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| GDDGGGDGDG
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| FFEFEEEFFF
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| ABBBAABAAA
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| CCCHCHCCCC
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| HBHHHBBHHH
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| BGBGBGBBBG
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| CGGCCCGGGG
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| EJEEJJEEJE
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| DHDDHHDHDD
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| BCBCBCBBBC
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| BBIIBIBIIB
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| CEECECCCEC
+[14:29:34.466  INFO] ://ddm@192.168.2.108:7877/user/collector| EAAAEAEEAE
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| DCDDCCDDDD
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| IICICCICCC
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| JJJJDJDDJJ
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| EIIIEIIIIE
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| HKHKHKKHKK
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| EHEHEEEHEE
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| BBKKKKBKBB
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| GGGBBBGBBB
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| FDDDFFDDDF
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| JJBJJBBBJJ
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| EIEIEEEEEE
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| GCGCGCCGGG
+[14:29:34.467  INFO] ://ddm@192.168.2.108:7877/user/collector| BGBBGGGGGB
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| EEHHEHHHHH
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| DAAAADDDDA
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| KKIIIIIKIK
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| DDIDDIDIDI
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| FDDFDDDFDF
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| IGGGGIIIII
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| AAADDDDDDD
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| IDIDDIDDDI
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| HHHDHDHDDH
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| GBBGGBBGBG
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| DBDBDDBDDD
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| GGGGEGGGGG
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| JJHHHJJJHJ
+[14:29:34.468  INFO] ://ddm@192.168.2.108:7877/user/collector| CJCJCJJCCC
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| KKCKCCKKCK
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| KDDDKDDKKD
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| GHHGHGHHHG
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| GFGFFGGFGF
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| HHCHCCCHCC
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| DDADDADADA
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| AAAIAIAIII
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| IDIIIIDDII
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| FGGFFGGFGG
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| HHAHAHAAAA
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| GAAAGGGAGA
+[14:29:34.469  INFO] ://ddm@192.168.2.108:7877/user/collector| CCCACCCACC
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| KIKIKIIKKI
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| CCCKKCKKCK
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| CCFFCCFFCF
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| ICICCICIII
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| JJDDJJDDJJ
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| AAGGAAGAGG
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| BBFFBBBBFF
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| FFBBBBBBBF
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| BCCBBBCCCC
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| HKHKKHHKKH
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| IHHIIHIHII
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| BBBBGBBBGB
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| CDCDCDCCDD
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| BBBDDDBDBB
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| KAAKKAKKKK
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| IIIDIDDIDI
+[14:29:34.470  INFO] ://ddm@192.168.2.108:7877/user/collector| GGGJJGJGGJ
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| KIIKIIIIIK
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| AGGGGGAAAA
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| AAJJJAJJJJ
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| KKEEKKEKEE
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| FFKFKKKKFK
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| GJJGJGGJJJ
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| GGGAAAAAAG
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| JJJHHJJHHH
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| KFKKKKKFKK
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| DFDDDDFDDF
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| AAACCAAACC
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| EAEAAEAAEA
+[14:29:34.471  INFO] ://ddm@192.168.2.108:7877/user/collector| AAAAKAAKKA
+[14:29:34.471  INFO] kka://ddm@192.168.2.108:7877/user/master| Algorithm finished in 241816 ms
+[14:29:34.471  INFO] kka://ddm@192.168.2.108:7877/user/reaper| Every local actor has been reaped. Terminating the actor system...
+[14:29:34.474  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Marked address [akka://ddm@192.168.2.108:7877] as [Leaving]
+[14:29:35.341  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Exiting completed
+[14:29:35.343  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Shutting down...
+[14:29:35.344  INFO]                      Cluster(akka://ddm)| Cluster Node [akka://ddm@192.168.2.108:7877] - Successfully shut down
+[14:29:35.351  INFO] 68.2.108:7877/system/remoting-terminator| Shutting down remote daemon.
+[14:29:35.352  INFO] 68.2.108:7877/system/remoting-terminator| Remote daemon shut down; proceeding with flushing remote transports.
+[14:29:35.400  WARN] system/Materializers/StreamSupervisor-1)| [outbound connection to [akka://ddm@192.168.2.105:7879], control stream] Upstream failed, cause: StreamTcpException: The connection has been aborted
+[14:29:35.401  WARN] system/Materializers/StreamSupervisor-1)| [outbound connection to [akka://ddm@192.168.2.105:7879], large message stream] Upstream failed, cause: StreamTcpException: The connection has been aborted
+[14:29:35.401  WARN] system/Materializers/StreamSupervisor-1)| [outbound connection to [akka://ddm@192.168.2.105:7879], message stream] Upstream failed, cause: StreamTcpException: The connection has been aborted
+[14:29:35.406  INFO] 68.2.108:7877/system/remoting-terminator| Remoting shut down.
