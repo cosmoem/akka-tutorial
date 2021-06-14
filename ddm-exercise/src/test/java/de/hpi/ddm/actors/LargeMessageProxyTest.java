@@ -22,6 +22,7 @@ import de.hpi.ddm.systems.MasterSystem;
 
 public class LargeMessageProxyTest {
 
+	/*
 	static ActorSystem system;
 
 	static class TestActor extends AbstractLoggingActor {
@@ -117,4 +118,5 @@ public class LargeMessageProxyTest {
 			}
 		};
 	}
+	*/
 }
