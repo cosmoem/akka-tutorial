@@ -177,9 +177,12 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		}
 
 		// delete cancellable and message
-		senderByteBuffer.getMap(messageId).remove(chunkOffset);
-		if (senderByteBuffer.getMap(messageId).isEmpty()) {
-			senderByteBuffer.deleteMapForMessageId(messageId);
+		Map<Integer, byte[]> senderByteBufferMap = senderByteBuffer.getMap(messageId);
+		if(senderByteBufferMap != null) {
+			senderByteBufferMap.remove(chunkOffset);
+			if (senderByteBufferMap.isEmpty()) {
+				senderByteBuffer.deleteMapForMessageId(messageId);
+			}
 		}
 	}
 
