@@ -100,6 +100,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		ActorRef sender = this.sender();
 		ActorRef receiver = largeMessage.getReceiver();
 		ActorSelection receiverProxy = this.context().actorSelection(receiver.path().child(DEFAULT_NAME));
+		this.log().info(receiverProxy.pathString());
 
 		// Serialize to byte array
 
@@ -113,7 +114,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 					messageAsBytes, index, Math.min(index + chunkedMessageSize, messageAsBytes.length)
 			);
 			BytesMessage<byte[]> messageChunk = chunkedBytesMessageCreator(
-					receiver, bytesChunk, index, messageId, messageAsBytes.length
+					receiver, sender, bytesChunk, index, messageId, messageAsBytes.length
 			);
 
 			senderByteBuffer.saveChunksToMap(messageId, index, bytesChunk);
@@ -200,6 +201,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 	// Receiver expects BytesMessage therefore we need to return a BytesMessage object in our chunkCreator
 	private BytesMessage<byte[]> chunkedBytesMessageCreator(
 			ActorRef receiver,
+			ActorRef sender,
 			byte[] messageBytes,
 			int chunkOffset,
 			String messageId,
@@ -211,7 +213,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		bytesMessage.chunkOffset = chunkOffset;
 		bytesMessage.messageId = messageId;
 		bytesMessage.messageLength = messageLength;
-		bytesMessage.sender = this.sender();
+		bytesMessage.sender = sender;
 		return bytesMessage;
 	}
 }
