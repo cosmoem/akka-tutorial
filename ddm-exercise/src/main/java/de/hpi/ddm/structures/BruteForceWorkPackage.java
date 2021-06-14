@@ -10,6 +10,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BruteForceWorkPackage implements Serializable {
+    private static final long serialVersionUID = -12975316443837400L;
     private int passwordId;
     private String passwordChars;
     private String hint;
