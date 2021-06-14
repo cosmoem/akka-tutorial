@@ -100,7 +100,6 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		ActorRef sender = this.sender();
 		ActorRef receiver = largeMessage.getReceiver();
 		ActorSelection receiverProxy = this.context().actorSelection(receiver.path().child(DEFAULT_NAME));
-		this.log().info(receiverProxy.pathString());
 
 		// Serialize to byte array
 
@@ -122,7 +121,7 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 			Cancellable sendAttempt = this.getContext().system().scheduler()
 				.scheduleAtFixedRate(
 					Duration.ofMillis(new Random().nextInt(3000)),
-					Duration.ofSeconds(new Random().nextInt(5000)),
+					Duration.ofSeconds(5),
 					() -> receiverProxy.tell(messageChunk, this.self()),
 					this.context().dispatcher()
 				);
