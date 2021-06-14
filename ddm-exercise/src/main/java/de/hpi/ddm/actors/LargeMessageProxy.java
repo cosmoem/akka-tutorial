@@ -167,10 +167,20 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		String messageId = message.getMessageId();
 		int chunkOffset = message.getChunkOffset();
 		// cancel cancellable
-		sendAttempts.get(messageId).get(chunkOffset).cancel();
+		Map<Integer, Cancellable> cancellableMap = sendAttempts.get(messageId);
+		if (cancellableMap != null) {
+			cancellableMap.get(chunkOffset).cancel();
+			cancellableMap.remove(chunkOffset);
+			if (cancellableMap.isEmpty()) {
+				sendAttempts.remove(messageId);
+			}
+		}
+
 		// delete cancellable and message
-		sendAttempts.get(messageId).remove(chunkOffset);
 		senderByteBuffer.getMap(messageId).remove(chunkOffset);
+		if (senderByteBuffer.getMap(messageId).isEmpty()) {
+			senderByteBuffer.deleteMapForMessageId(messageId);
+		}
 	}
 
 	////////////////////
