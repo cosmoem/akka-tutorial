@@ -19,6 +19,7 @@ import akka.cluster.Member;
 import akka.cluster.MemberStatus;
 
 import static de.hpi.ddm.actors.BruteForceWorker.*;
+import static de.hpi.ddm.actors.Master.*;
 import static de.hpi.ddm.actors.PasswordCrackerWorker.*;
 import static de.hpi.ddm.actors.PermutationHandler.*;
 
@@ -133,7 +134,6 @@ public class Worker extends AbstractLoggingActor {
 				.match(MemberRemoved.class, this::handle)
 				.match(WelcomeMessage.class, this::handle) // Welcome from Master
 				.match(PasswordWorkPackageMessage.class, this::handle) // Gets Password that should be worked on from Master
-				.match(WorkerSystemRegistrationMessage.class, this::handle) // BruteForceWorker registers with Worker
 				.match(BruteForceWorkerWorkRequestMessage.class, this::handle) // BruteForceWorkers asks for Hint to crack
 				.match(BruteForceResultMessage.class, this::handle) // Receives Result from BruteForceWorker
 				.match(PasswordCrackerWorkRequestMessage.class, this::handle) // PasswordCracker asks for Password to crack
@@ -181,10 +181,11 @@ public class Worker extends AbstractLoggingActor {
 		}
 		if (this.bruteforceWorkers.isEmpty()) {
 			for (int i = 0; i < c.getNumBruteForceWorkers(); i++) {
-				this.context().actorOf(
+				ActorRef actor = this.context().actorOf(
 						BruteForceWorker.props(),
 						BruteForceWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" +  i
 				);
+				this.bruteforceWorkers.add(actor);
 			}
 		}
 		else {
@@ -192,21 +193,6 @@ public class Worker extends AbstractLoggingActor {
 				giveBruteForceWorkersWork(bruteforceWorker);
 			}
 		}
-	}
-
-	protected void handle(WorkerSystemRegistrationMessage message) {
-		this.context().watch(this.sender());
-		String name = this.sender().path().name();
-		String type = name.substring(0, name.length() - Worker.DEFAULT_NAME.length() - 4);
-		if (type.equals(BruteForceWorker.DEFAULT_NAME)) {
-			this.bruteforceWorkers.add(this.sender());
-		}
-		else if (type.equals(PasswordCrackerWorker.DEFAULT_NAME)) {
-			this.passwordCrackerWorkers.add(this.sender());
-		}
-		this.log().info("Registered {}", this.sender());
-		Worker.WelcomeMessage welcomeMessage = new Worker.WelcomeMessage(this.welcomeData);
-		this.sender().tell(welcomeMessage, this.self());
 	}
 
 	private void handle(BruteForceWorkerWorkRequestMessage message) {
@@ -230,6 +216,7 @@ public class Worker extends AbstractLoggingActor {
 							PasswordCrackerWorker.props(),
 							PasswordCrackerWorker.DEFAULT_NAME + "-" + this.self().path().name() + "-" + i
 					);
+					this.passwordCrackerWorkers.add(actor);
 				}
 			}
 			else {
@@ -239,7 +226,7 @@ public class Worker extends AbstractLoggingActor {
 			}
 			ActorSelection master = this.getContext()
 					.actorSelection(this.masterSystem.address() + "/user/" + Master.DEFAULT_NAME);
-			master.tell(new Master.WorkerWorkRequestMessage(), this.self());
+			master.tell(new WorkerWorkRequestMessage(), this.self());
 		}
 		else {
 			giveBruteForceWorkersWork(this.sender());
@@ -264,11 +251,9 @@ public class Worker extends AbstractLoggingActor {
 	private void register(Member member) {
 		if ((this.masterSystem == null) && member.hasRole(MasterSystem.MASTER_ROLE)) {
 			this.masterSystem = member;
-
 			this.getContext()
 					.actorSelection(member.address() + "/user/" + Master.DEFAULT_NAME)
-					.tell(new Master.RegistrationMessage(), this.self());
-
+					.tell(new RegistrationMessage(), this.self());
 			this.registrationTime = System.currentTimeMillis();
 		}
 	}

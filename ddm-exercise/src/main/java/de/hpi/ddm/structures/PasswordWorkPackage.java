@@ -10,6 +10,7 @@ import java.io.Serializable;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PasswordWorkPackage implements Serializable {
+    private static final long serialVersionUID = 24684875323217333L;
     private int id;
     private String name;
     private String passwordCharacters;

@@ -23,7 +23,6 @@ import java.util.Map;
 
 import static de.hpi.ddm.actors.Master.*;
 import static de.hpi.ddm.actors.PermutationWorker.*;
-import static de.hpi.ddm.actors.LargeMessageProxy.*;
 
 
 public class PermutationHandler extends AbstractLoggingActor {
@@ -50,12 +49,6 @@ public class PermutationHandler extends AbstractLoggingActor {
     ////////////////////
     // Actor Messages //
     ////////////////////
-
-
-    @Data
-    public static class WorkerSystemRegistrationMessage implements Serializable {
-        private static final long serialVersionUID = -5533081653659775497L;
-    }
 
     @Data @NoArgsConstructor @AllArgsConstructor
     public static class PermutationWorkPackagesMessage implements Serializable {
@@ -117,7 +110,6 @@ public class PermutationHandler extends AbstractLoggingActor {
                 .match(ClusterEvent.MemberRemoved.class, this::handle)
                 .match(Worker.WelcomeMessage.class, this::handle) // Welcome from Master
                 .match(PermutationWorkPackagesMessage.class, this::handle) // PermutationWorkPackages List from Master
-                .match(WorkerSystemRegistrationMessage.class, this::handle) // Registration from PermutationWorker
                 .match(PermutationWorkRequest.class, this::handle) // WorkRequest from PermutationWorker
                 .match(PermutationResultMessage.class, this::handle) // Message that job is finished from PermutationWorker
                 .matchAny(object -> this.log().info("Received unknown message: \"{}\"", object.toString()))
@@ -169,18 +161,9 @@ public class PermutationHandler extends AbstractLoggingActor {
                 ActorRef actor = this.context()
                         .actorOf(PermutationWorker.props().withDispatcher("akka.actor.my-dispatcher"), PermutationWorker.DEFAULT_NAME + i);
                 this.log().info("Created actor {}", actor.path().name());
+                this.permutationWorkers.add(actor);
             }
         }
-    }
-
-    protected void handle(WorkerSystemRegistrationMessage message) {
-        this.context().watch(this.sender());
-        String name = this.sender().path().name();
-        this.permutationWorkers.add(this.sender());
-        this.log().info("Registered {}", this.sender());
-        Worker.WelcomeMessage welcomeMessage = new Worker.WelcomeMessage(this.welcomeData);
-        LargeMessage<Worker.WelcomeMessage> largeMessage = new LargeMessage<>(welcomeMessage, this.sender());
-        this.largeMessageProxy.tell(largeMessage, this.self());
     }
 
     protected void handle(PermutationWorkRequest message) {

@@ -39,7 +39,7 @@ public class Configuration {
 
 	private int largeMessageChunkSize = 8192;       // Size of each message chunk for large messages (LargeMessageProxy) TODO which size?
 
-	private int welcomeDataSize = 2; 				// Size of the welcome message's data (in MB) with which each worker should be greeted
+	private int welcomeDataSize = 0; 				// Size of the welcome message's data (in MB) with which each worker should be greeted
 	
 	private static String getDefaultHost() {
         try {

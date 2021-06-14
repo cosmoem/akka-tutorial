@@ -38,7 +38,7 @@ public class WorkerSystem {
 		BloomFilter welcomeData = c.generateWelcomeData();
 
 		ActorRef reaper = system.actorOf(Reaper.props(), Reaper.DEFAULT_NAME);
-		ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME);
+		ActorRef permutationHandler = system.actorOf(PermutationHandler.props(welcomeData), PermutationHandler.DEFAULT_NAME  + "-workersys-");
 
 		Cluster.get(system).registerOnMemberUp(() -> {
 			for (int i = 0; i < c.getNumWorkers(); i++)

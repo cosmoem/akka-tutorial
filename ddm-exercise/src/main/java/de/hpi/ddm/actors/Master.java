@@ -44,6 +44,7 @@ public class Master extends AbstractLoggingActor {
 		this.passwordWorkPackages = new ArrayList<>();
 		this.permutationWorkPackages = new ArrayList<>();
 		this.resultTracker = new HashMap<>();
+		this.otherWatchedActors = new ArrayList<>();
 	}
 
 	////////////////////
@@ -94,6 +95,7 @@ public class Master extends AbstractLoggingActor {
 	private final ActorRef collector;
 	private final ActorRef largeMessageProxy;
 	private final List<ActorRef> workers;
+	private final List<ActorRef> otherWatchedActors;
 	private final BloomFilter welcomeData;
 	private final List<PasswordWorkPackage> passwordWorkPackages;
 	private final List<PermutationWorkPackage> permutationWorkPackages;
@@ -194,6 +196,9 @@ public class Master extends AbstractLoggingActor {
 		if (type.equals(Worker.DEFAULT_NAME)) {
 			this.workers.add(this.sender());
 		}
+		else {
+			this.otherWatchedActors.add(this.sender());
+		}
 
 		this.log().info("Registered {}", this.sender());
 
@@ -212,7 +217,7 @@ public class Master extends AbstractLoggingActor {
 	}
 
 	private void handle(PermutationsReadyMessage message) {
-		this.log().info("Received Signal that Permutations are ready for System {}", this.sender().path().parent().name());
+		this.log().info("Received Signal that Permutations are ready for System {}", this.sender().path().name());
 		for (ActorRef worker : this.workers) {
 			if (!this.passwordWorkPackages.isEmpty()) {
 				if (worker.path().parent().equals(sender().path().parent())) {
@@ -258,6 +263,10 @@ public class Master extends AbstractLoggingActor {
 		this.collector.tell(PoisonPill.getInstance(), ActorRef.noSender());
 
 		for (ActorRef worker : this.workers) {
+			this.context().unwatch(worker);
+			worker.tell(PoisonPill.getInstance(), ActorRef.noSender());
+		}
+		for (ActorRef worker : this.otherWatchedActors) {
 			this.context().unwatch(worker);
 			worker.tell(PoisonPill.getInstance(), ActorRef.noSender());
 		}
