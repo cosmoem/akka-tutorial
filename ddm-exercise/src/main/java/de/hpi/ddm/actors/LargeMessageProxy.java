@@ -120,8 +120,8 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 
 			Cancellable sendAttempt = this.getContext().system().scheduler()
 				.scheduleAtFixedRate(
-					Duration.ZERO,
-					Duration.ofSeconds(5),
+					Duration.ofMillis(new Random().nextInt(3000)),
+					Duration.ofSeconds(new Random().nextInt(5000)),
 					() -> receiverProxy.tell(messageChunk, this.self()),
 					this.context().dispatcher()
 				);
@@ -169,8 +169,11 @@ public class LargeMessageProxy extends AbstractLoggingActor {
 		// cancel cancellable
 		Map<Integer, Cancellable> cancellableMap = sendAttempts.get(messageId);
 		if (cancellableMap != null) {
-			cancellableMap.get(chunkOffset).cancel();
-			cancellableMap.remove(chunkOffset);
+			Cancellable cancellable = cancellableMap.get(chunkOffset);
+			if (cancellable != null) {
+				cancellable.cancel();
+				cancellableMap.remove(chunkOffset);
+			}
 			if (cancellableMap.isEmpty()) {
 				sendAttempts.remove(messageId);
 			}
